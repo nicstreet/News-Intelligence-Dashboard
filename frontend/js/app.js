@@ -8,6 +8,7 @@
     automation: null,
     universe: null,
     calibration: null,
+    calibrationOutcomes: null,
     fileDrop: null,
     marketBars: [],
     marketRequests: [],
@@ -69,6 +70,7 @@
       "refresh-automation", "run-automation-now", "automation-run-status",
       "refresh-universe", "universe-summary", "universe-table",
       "refresh-calibration", "calibration-summary", "calibration-report",
+      "calibration-outcome-summary", "calibration-outcomes",
       "refresh-file-drop", "export-latest-file-drop", "file-drop-status",
       "file-drop-result", "refresh-event-list", "event-list", "event-detail-meta",
       "event-detail-summary", "event-detail-signal", "event-detail-impacts",
@@ -405,6 +407,12 @@
   function renderCalibration() {
     elements["calibration-summary"].innerHTML = window.NewsRenderers.renderCalibrationSummary(state.calibration);
     elements["calibration-report"].innerHTML = window.NewsRenderers.renderCalibrationReport(state.calibration);
+    elements["calibration-outcome-summary"].innerHTML = window.NewsRenderers.renderCalibrationOutcomeSummary(
+      state.calibrationOutcomes
+    );
+    elements["calibration-outcomes"].innerHTML = window.NewsRenderers.renderCalibrationOutcomes(
+      state.calibrationOutcomes
+    );
   }
 
   function renderFileDrop() {
@@ -575,11 +583,17 @@
 
   async function refreshCalibration() {
     try {
-      state.calibration = await window.NewsApi.calibrationReport();
+      const [report, outcomes] = await Promise.all([
+        window.NewsApi.calibrationReport(),
+        window.NewsApi.calibrationOutcomes()
+      ]);
+      state.calibration = report;
+      state.calibrationOutcomes = outcomes;
       renderCalibration();
       renderSidebar();
     } catch (error) {
       state.calibration = null;
+      state.calibrationOutcomes = null;
       if (!window.NewsApi.isMockMode()) {
         showError(error);
       }

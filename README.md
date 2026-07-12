@@ -196,7 +196,8 @@ Implemented endpoints:
 | `GET` | `/sources/status` | Show configured source status |
 | `GET` | `/automation/status` | Show due/stale source state, background runner state, and recent automation runs |
 | `POST` | `/automation/run-now` | Run due-source polling and configured retention housekeeping immediately |
-| `GET` | `/calibration/report` | Build the current calibration report scaffold |
+| `GET` | `/calibration/report` | Build the current calibration profile report |
+| `GET` | `/calibration/outcomes` | Join persisted news signals to cached market data and calculate forward returns |
 | `POST` | `/market-data/eodhd/fetch` | Fetch and cache bounded EODHD daily or intraday bars |
 | `GET` | `/market-data/bars/recent` | List recently cached market-data bars |
 | `GET` | `/market-data/requests/recent` | List recent market-data request audit records |

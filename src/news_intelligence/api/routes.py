@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Body, HTTPException
 
+from news_intelligence.calibration.outcomes import JoinedOutcomeAnalysisService
 from news_intelligence.calibration.service import HistoricalCalibrationService
 from news_intelligence.ingestion.adapters import coerce_raw_news_items
 from news_intelligence.market_data.service import MarketDataService
@@ -232,6 +233,15 @@ async def calibration_report(limit: int = 500) -> dict[str, Any]:
         FavouritesUniverseService(pipeline.config),
     )
     return service.report(limit=limit)
+
+
+@router.get("/calibration/outcomes")
+async def calibration_outcomes(limit: int = 500) -> dict[str, Any]:
+    service = JoinedOutcomeAnalysisService(
+        pipeline.repositories,
+        FavouritesUniverseService(pipeline.config),
+    )
+    return service.outcomes(limit=limit)
 
 
 @router.post("/market-data/eodhd/fetch")

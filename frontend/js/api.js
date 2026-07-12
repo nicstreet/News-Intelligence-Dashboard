@@ -18,6 +18,7 @@ const MOCK_MODE = false;
     automationRunNow: "/automation/run-now",
     universe: "/universe/favourites",
     calibration: "/calibration/report",
+    calibrationOutcomes: "/calibration/outcomes",
     fileDropStatus: "/outputs/file-drop/status",
     fileDropLatest: "/outputs/file-drop/latest",
     marketBars: "/market-data/bars/recent",
@@ -171,6 +172,13 @@ const MOCK_MODE = false;
     return request(ENDPOINTS.calibration);
   }
 
+  async function calibrationOutcomes() {
+    if (useMockMode()) {
+      return {rows: [], outcome_count: 0, missing_market_data_count: 0, outcome_status: "mock"};
+    }
+    return request(ENDPOINTS.calibrationOutcomes);
+  }
+
   async function fileDropStatus() {
     if (useMockMode()) {
       return {enabled: false, output_dir: "mock"};
@@ -305,6 +313,7 @@ const MOCK_MODE = false;
     automationRunNow,
     favouritesUniverse,
     calibrationReport,
+    calibrationOutcomes,
     fileDropStatus,
     marketBars,
     marketRequests,

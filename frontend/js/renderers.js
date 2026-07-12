@@ -15,6 +15,15 @@
     return Number(value).toFixed(digits);
   }
 
+  function percent(value) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+      return "n/a";
+    }
+    const numeric = Number(value) * 100;
+    const prefix = numeric > 0 ? "+" : "";
+    return `${prefix}${numeric.toFixed(2)}%`;
+  }
+
   function formatBytes(value) {
     const bytes = Number(value || 0);
     if (bytes < 1024) return `${bytes.toFixed(0)} B`;
@@ -553,6 +562,53 @@
     </div>`;
   }
 
+  function renderCalibrationOutcomeSummary(outcomes) {
+    if (!outcomes) {
+      return metric("Joined outcomes", "Not loaded");
+    }
+    return [
+      metric("Joined outcomes", outcomes.outcome_count || 0),
+      metric("Signals checked", outcomes.signal_count || 0),
+      metric("Missing market data", outcomes.missing_market_data_count || 0),
+      metric("Join status", upper(outcomes.outcome_status || "unknown"))
+    ].join("");
+  }
+
+  function renderCalibrationOutcomes(outcomes) {
+    const rows = outcomes && outcomes.rows ? outcomes.rows : [];
+    if (rows.length === 0) {
+      return `<tr><td colspan="12">No joined news-vs-market outcomes available. Cache EODHD bars for event symbols, then refresh.</td></tr>`;
+    }
+    return rows.map((row) => {
+      const returns = row.returns || {};
+      const abnormal = row.abnormal_returns || {};
+      const dateTime = ukDateTime(row.event_time);
+      return `<tr>
+        <td>${escapeHtml(row.event_id || "n/a")}</td>
+        <td>${escapeHtml(`${dateTime.date} ${dateTime.time}`)}</td>
+        <td>${escapeHtml(row.symbol || "n/a")}</td>
+        <td>${upper(row.event_type)}</td>
+        <td>${number(row.signal_score, 1)}</td>
+        <td>${upper(row.market_session || row.anchor_source || "n/a")}</td>
+        <td>${number(row.price_at_event, 2)}</td>
+        <td class="${returnClass(returns["30m"])}">${percent(returns["30m"])}</td>
+        <td class="${returnClass(returns["1d"])}">${percent(returns["1d"])}</td>
+        <td class="${returnClass(returns["5d"])}">${percent(returns["5d"])}</td>
+        <td class="${returnClass(abnormal["1d"])}">${percent(abnormal["1d"])}</td>
+        <td>${upper(row.outcome_status)}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  function returnClass(value) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
+      return "";
+    }
+    if (Number(value) > 0) return "direction-BULLISH";
+    if (Number(value) < 0) return "direction-BEARISH";
+    return "direction-NEUTRAL";
+  }
+
   function renderFileDropStatus(status) {
     if (!status) {
       return metric("Status", "No file-drop status loaded");
@@ -776,6 +832,8 @@
     renderUniverseTable,
     renderCalibrationSummary,
     renderCalibrationReport,
+    renderCalibrationOutcomeSummary,
+    renderCalibrationOutcomes,
     renderFileDropStatus,
     renderMarketBars,
     renderMarketRequests,

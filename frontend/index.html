@@ -428,10 +428,35 @@
 
         <section class="card calibration-panel view-section view-hidden" data-views="calibration" aria-labelledby="calibration-heading">
           <div class="section-heading">
-            <h2 id="calibration-heading">Historical Calibration</h2>
+            <div>
+              <h2 id="calibration-heading">Historical Calibration</h2>
+              <p>Joined news signal and cached market-data outcomes.</p>
+            </div>
             <button id="refresh-calibration" class="btn" type="button">Refresh</button>
           </div>
           <div id="calibration-summary" class="metric-grid"></div>
+          <div id="calibration-outcome-summary" class="metric-grid"></div>
+          <div class="table-wrap calibration-outcomes-wrap">
+            <table class="screener">
+              <thead>
+                <tr>
+                  <th>Event ID</th>
+                  <th>Time</th>
+                  <th>Symbol</th>
+                  <th>Type</th>
+                  <th>Score</th>
+                  <th>Anchor</th>
+                  <th>Price</th>
+                  <th>30m</th>
+                  <th>1d</th>
+                  <th>5d</th>
+                  <th>Abn 1d</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="calibration-outcomes"></tbody>
+            </table>
+          </div>
           <div id="calibration-report"></div>
         </section>
 

@@ -2,7 +2,7 @@
 
 Historical calibration is planned for `v0.4`. The goal is to measure how event types, source quality, surprise, confirmation status, and affected instruments relate to subsequent market behaviour.
 
-Current implementation status: the project now has a favourites-universe scoped calibration report scaffold at `GET /calibration/report`. It groups persisted favourite-universe signals by event profile and exposes the intended outcome windows and confounder grades. It does not yet join market data or update live scoring automatically.
+Current implementation status: the project now has a favourites-universe scoped calibration report at `GET /calibration/report` and a joined outcome view at `GET /calibration/outcomes`. The joined view links persisted news signals to cached market bars, calculates forward returns, benchmark returns, abnormal returns, event anchors, release sessions and missing-data diagnostics. It does not yet update live scoring automatically.
 
 Current market-data foundation:
 
@@ -12,6 +12,7 @@ Current market-data foundation:
 - `market_data_requests` stores request audit records without returning the API token.
 - storage retention now manages daily bars, intraday bars and request audits separately.
 - `EventMarketTimer` classifies event timing and provides first-tradable-anchor timestamps.
+- `JoinedOutcomeAnalysisService` builds the read-only news-vs-market outcome rows used by the dashboard calibration view.
 
 ## Purpose
 
