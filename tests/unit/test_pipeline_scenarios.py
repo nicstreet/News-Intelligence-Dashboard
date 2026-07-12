@@ -277,6 +277,10 @@ def test_dashboard_exposes_update_counts_and_versions() -> None:
     assert "storageRetentionDryRun" in app
     assert "applyStorageRetention" in app
     assert "renderRetentionPlan" in renderers
+    assert "run-automation-now" in app
+    assert "automationRunNow" in app
+    assert "renderAutomationRuns" in renderers
+    assert "recent_runs" in renderers
 
 
 def test_takeover_fixture_isolated_across_test_runs(isolated_database: Path) -> None:

@@ -622,6 +622,10 @@ label {
   background: #0e151d;
 }
 
+.automation-runs {
+  margin-top: 12px;
+}
+
 .hidden {
   display: none !important;
 }

@@ -63,7 +63,8 @@
       "delete-current-test-run", "reset-development-data", "refresh-test-runs",
       "active-test-run-id", "historical-test-runs", "poll-due-sources",
       "poll-world-news", "sidebar-start-test-run", "automation-status",
-      "refresh-automation", "refresh-universe", "universe-summary", "universe-table",
+      "refresh-automation", "run-automation-now", "automation-run-status",
+      "refresh-universe", "universe-summary", "universe-table",
       "refresh-calibration", "calibration-summary", "calibration-report",
       "refresh-file-drop", "export-latest-file-drop", "file-drop-status",
       "file-drop-result", "refresh-event-list", "event-list", "event-detail-meta",
@@ -131,6 +132,7 @@
     elements["sidebar-start-test-run"].addEventListener("click", startNewTestRun);
     elements["refresh-source-filings"].addEventListener("click", refreshSourceFilings);
     elements["refresh-automation"].addEventListener("click", refreshAutomation);
+    elements["run-automation-now"].addEventListener("click", runAutomationNow);
     elements["refresh-universe"].addEventListener("click", refreshUniverse);
     elements["refresh-calibration"].addEventListener("click", refreshCalibration);
     elements["refresh-file-drop"].addEventListener("click", refreshFileDrop);
@@ -513,6 +515,28 @@
     }
   }
 
+  async function runAutomationNow() {
+    hideError();
+    setAutomationStatus("Automation: running...", "processing");
+    elements["run-automation-now"].disabled = true;
+    try {
+      const result = await window.NewsApi.automationRunNow(false);
+      state.lastResponse = result;
+      await refreshSources();
+      await refreshSourceFilings();
+      await refreshAutomation();
+      await refreshRecent();
+      await refreshStorage();
+      renderDeveloper();
+      setAutomationStatus(`Automation: ${result.ingested_count || 0} ingested`, "");
+    } catch (error) {
+      setAutomationStatus("Automation: failed", "error");
+      showError(error);
+    } finally {
+      elements["run-automation-now"].disabled = false;
+    }
+  }
+
   async function refreshUniverse() {
     try {
       state.universe = await window.NewsApi.favouritesUniverse();
@@ -678,6 +702,14 @@
 
   function setSecPollStatus(message, stateClass) {
     const status = elements["sec-edgar-poll-status"];
+    status.textContent = message;
+    status.classList.toggle("muted", !stateClass);
+    status.classList.toggle("processing", stateClass === "processing");
+    status.classList.toggle("error", stateClass === "error");
+  }
+
+  function setAutomationStatus(message, stateClass) {
+    const status = elements["automation-run-status"];
     status.textContent = message;
     status.classList.toggle("muted", !stateClass);
     status.classList.toggle("processing", stateClass === "processing");

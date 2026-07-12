@@ -368,16 +368,26 @@
         <td>${escapeHtml(source.current_status)}</td>
         <td>${String(Boolean(source.due)).toUpperCase()}</td>
         <td>${String(Boolean(source.stale)).toUpperCase()}</td>
+        <td>${escapeHtml(source.items_ingested || 0)}</td>
+        <td>${escapeHtml(source.last_successful_ingestion || "n/a")}</td>
         <td>${escapeHtml(source.last_polled_at || "n/a")}</td>
         <td>${escapeHtml(source.next_poll_after || "n/a")}</td>
         <td>${escapeHtml(source.last_failure || "n/a")}</td>
       </tr>`).join("")
-      : `<tr><td colspan="8">No source automation status available.</td></tr>`;
+      : `<tr><td colspan="10">No source automation status available.</td></tr>`;
+    const background = status.background || {};
+    const recentRuns = status.recent_runs || [];
     return `<div class="metric-grid">
       ${metric("Automation enabled", String(Boolean(status.enabled)).toUpperCase())}
+      ${metric("Background running", String(Boolean(background.running)).toUpperCase())}
+      ${metric("Interval seconds", background.interval_seconds || status.scheduler_interval_seconds || "n/a")}
       ${metric("Due sources", status.due_count || 0)}
       ${metric("Stale sources", status.stale_count || 0)}
+      ${metric("Retention due", String(Boolean(status.retention && status.retention.due)).toUpperCase())}
       ${metric("Generated", status.generated_at || "n/a")}
+      ${metric("Last tick", background.last_tick_at || "n/a")}
+      ${metric("Next tick", background.next_tick_at || "n/a")}
+      ${metric("Last error", background.last_error || "none")}
     </div>
     <div class="table-wrap">
       <table>
@@ -388,6 +398,8 @@
             <th>Status</th>
             <th>Due</th>
             <th>Stale</th>
+            <th>Items</th>
+            <th>Last success</th>
             <th>Last poll</th>
             <th>Next poll</th>
             <th>Last failure</th>
@@ -395,7 +407,42 @@
         </thead>
         <tbody>${rows}</tbody>
       </table>
+    </div>
+    <div class="table-wrap automation-runs">
+      <table>
+        <thead>
+          <tr>
+            <th>Run</th>
+            <th>Reason</th>
+            <th>Completed</th>
+            <th>Sources</th>
+            <th>Fetched</th>
+            <th>Ingested</th>
+            <th>Skipped</th>
+            <th>Errors</th>
+            <th>Retention</th>
+          </tr>
+        </thead>
+        <tbody>${renderAutomationRuns(recentRuns)}</tbody>
+      </table>
     </div>`;
+  }
+
+  function renderAutomationRuns(runs) {
+    if (!runs || runs.length === 0) {
+      return `<tr><td colspan="9">No automation runs recorded.</td></tr>`;
+    }
+    return runs.map((run) => `<tr>
+      <td>${escapeHtml(run.automation_run_id || "n/a")}</td>
+      <td>${escapeHtml(run.reason || "n/a")}</td>
+      <td>${escapeHtml(run.completed_at || "n/a")}</td>
+      <td>${escapeHtml(run.source_run_count || 0)}</td>
+      <td>${escapeHtml(run.fetched_count || 0)}</td>
+      <td>${escapeHtml(run.ingested_count || 0)}</td>
+      <td>${escapeHtml(run.skipped_count || 0)}</td>
+      <td>${escapeHtml(run.error_count || 0)}</td>
+      <td>${String(Boolean(run.retention_applied)).toUpperCase()}</td>
+    </tr>`).join("");
   }
 
   function renderUniverseSummary(universe) {

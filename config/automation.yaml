@@ -1,6 +1,7 @@
 version: automation-1.0.0
 enabled: false
 poll_due_on_startup: false
+scheduler_interval_seconds: 60
 sources:
   sec_edgar:
     enabled: true
@@ -10,3 +11,8 @@ sources:
     enabled: true
     stale_after_minutes: 60
     retry_attempts: 2
+retention:
+  enabled: false
+  apply_on_startup: false
+  interval_minutes: 1440
+  retention_days: {}

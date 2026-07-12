@@ -15,6 +15,7 @@ const MOCK_MODE = false;
     worldNewsPoll: "/sources/world-news/poll",
     pollDueSources: "/sources/poll-due",
     automation: "/automation/status",
+    automationRunNow: "/automation/run-now",
     universe: "/universe/favourites",
     calibration: "/calibration/report",
     fileDropStatus: "/outputs/file-drop/status",
@@ -135,6 +136,23 @@ const MOCK_MODE = false;
       return {enabled: false, sources: [], stale_count: 0, due_count: 0};
     }
     return request(ENDPOINTS.automation);
+  }
+
+  async function automationRunNow(force) {
+    if (useMockMode()) {
+      return {
+        automation_run_id: `mock_auto_${Date.now()}`,
+        reason: "mock",
+        source_run_count: 0,
+        fetched_count: 0,
+        ingested_count: 0,
+        skipped_count: 0,
+        error_count: 0,
+        source_runs: []
+      };
+    }
+    const suffix = force ? "?force=true" : "";
+    return request(`${ENDPOINTS.automationRunNow}${suffix}`, {method: "POST"});
   }
 
   async function favouritesUniverse() {
@@ -268,6 +286,7 @@ const MOCK_MODE = false;
     pollWorldNews,
     pollDueSources,
     automationStatus,
+    automationRunNow,
     favouritesUniverse,
     calibrationReport,
     fileDropStatus,

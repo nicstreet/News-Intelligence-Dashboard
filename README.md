@@ -32,7 +32,7 @@ Implemented:
 - Test-run controls for deterministic fixture testing.
 - Favourites-universe config for the initial calibration/source-monitoring scope.
 - Controlled world-news JSON source family for market-relevant geopolitical and macro events.
-- Scheduler service for due/stale source checks and poll-due automation.
+- Background-capable scheduler for due/stale source checks, manual automation runs, retry handling, retention housekeeping, and run history.
 - Atomic file-drop exporter for cleansed signal/event JSON payloads.
 - Calibration report scaffold over persisted favourite-universe signals.
 - Unit and integration tests for duplicate handling, material updates, signal snapshots, deletion, reset behaviour, world-news ingestion, signal scoring, file-drop export, and calibration scaffolding.
@@ -194,7 +194,8 @@ Implemented endpoints:
 | `GET` | `/sources/filings/recent` | List recently ingested source filings |
 | `GET` | `/sources/items/recent` | List recently ingested source records |
 | `GET` | `/sources/status` | Show configured source status |
-| `GET` | `/automation/status` | Show due/stale source automation state |
+| `GET` | `/automation/status` | Show due/stale source state, background runner state, and recent automation runs |
+| `POST` | `/automation/run-now` | Run due-source polling and configured retention housekeeping immediately |
 | `GET` | `/calibration/report` | Build the current calibration report scaffold |
 | `GET` | `/outputs/file-drop/status` | Show file-drop output configuration |
 | `POST` | `/outputs/file-drop/signals/{signal_id}` | Export one signal payload to file drop |
@@ -319,7 +320,19 @@ config/automation.yaml
 config/file-drop.yaml
 ```
 
-Automation is explicit and inspectable through `/automation/status` and `/sources/poll-due`. File-drop export writes completed `.json` files through an atomic `.tmp` rename.
+Automation is explicit and inspectable through `/automation/status`, `/automation/run-now`, and `/sources/poll-due`.
+
+`config/automation.yaml` controls:
+
+- whether the background runner starts automatically
+- startup polling
+- scheduler interval
+- source stale thresholds
+- optional retention housekeeping
+
+The dashboard Automation panel shows background runner state, due/stale source status, last/next poll times, source failures, and recent automation run history. Automation is disabled by default until `automation.enabled` is set to `true`.
+
+File-drop export writes completed `.json` files through an atomic `.tmp` rename.
 
 ## Tests And Validation
 

@@ -129,6 +129,7 @@ class RepositoryBundle:
         self.signals = JsonRecordRepository(db_path, "signal_snapshots")
         self.source_filings = JsonRecordRepository(db_path, "source_filings")
         self.source_status = JsonRecordRepository(db_path, "source_status")
+        self.automation_runs = JsonRecordRepository(db_path, "automation_runs")
 
     def delete_test_run(self, test_run_id: str) -> dict[str, int]:
         return {
@@ -154,6 +155,7 @@ class RepositoryBundle:
             "signal_snapshots": self.signals,
             "source_filings": self.source_filings,
             "source_status": self.source_status,
+            "automation_runs": self.automation_runs,
         }
 
     def _is_development_or_test_record(self, payload: dict[str, Any]) -> bool:

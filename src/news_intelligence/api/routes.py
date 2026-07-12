@@ -10,6 +10,7 @@ from news_intelligence.ingestion.adapters import coerce_raw_news_items
 from news_intelligence.outputs.file_drop import FileDropExporter
 from news_intelligence.pipeline import NewsIntelligencePipeline
 from news_intelligence.schemas.export import public_json_schemas
+from news_intelligence.sources.background import SourceAutomationBackgroundRunner
 from news_intelligence.sources.scheduler import SourceScheduler
 from news_intelligence.sources.sec_edgar import SecEdgarConnector
 from news_intelligence.sources.service import SourceIngestionService
@@ -19,6 +20,7 @@ from news_intelligence.universe import FavouritesUniverseService
 
 router = APIRouter()
 pipeline = NewsIntelligencePipeline()
+automation_runner: SourceAutomationBackgroundRunner | None = None
 NEWS_PAYLOAD = Body(...)
 RETENTION_PAYLOAD = Body(default=None)
 
@@ -190,7 +192,33 @@ async def source_status() -> list[dict[str, Any]]:
 
 @router.get("/automation/status")
 async def automation_status() -> dict[str, Any]:
-    return SourceScheduler(pipeline).status()
+    status = SourceScheduler(pipeline).status()
+    status["background"] = (
+        automation_runner.status()
+        if automation_runner is not None
+        else {
+            "enabled": bool(pipeline.config.automation.get("enabled", False)),
+            "running": False,
+            "interval_seconds": SourceScheduler(pipeline).interval_seconds(),
+            "last_tick_at": None,
+            "next_tick_at": None,
+            "last_error": None,
+        }
+    )
+    return status
+
+
+@router.post("/automation/run-now")
+async def automation_run_now(force: bool = False) -> dict[str, Any]:
+    if automation_runner is not None:
+        return await automation_runner.run_once(
+            reason="manual_api",
+            force_sources=force,
+        )
+    return SourceScheduler(pipeline).run_once(
+        force_sources=force,
+        reason="manual_api",
+    )
 
 
 @router.get("/calibration/report")
