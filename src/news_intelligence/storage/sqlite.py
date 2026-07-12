@@ -127,6 +127,8 @@ class RepositoryBundle:
         self.clusters = JsonRecordRepository(db_path, "event_clusters")
         self.impacts = JsonRecordRepository(db_path, "instrument_impacts")
         self.signals = JsonRecordRepository(db_path, "signal_snapshots")
+        self.source_filings = JsonRecordRepository(db_path, "source_filings")
+        self.source_status = JsonRecordRepository(db_path, "source_status")
 
     def delete_test_run(self, test_run_id: str) -> dict[str, int]:
         return {
@@ -150,6 +152,8 @@ class RepositoryBundle:
             "event_clusters": self.clusters,
             "instrument_impacts": self.impacts,
             "signal_snapshots": self.signals,
+            "source_filings": self.source_filings,
+            "source_status": self.source_status,
         }
 
     def _is_development_or_test_record(self, payload: dict[str, Any]) -> bool:

@@ -10,6 +10,8 @@ const MOCK_MODE = false;
     signals: (symbol) => `/news/signals/${encodeURIComponent(symbol)}`,
     recent: "/news/events/recent",
     sources: "/sources/status",
+    sourceFilings: "/sources/filings/recent",
+    secEdgarPoll: "/sources/sec-edgar/poll",
     testRuns: "/test-runs",
     testRun: (testRunId) => `/test-runs/${encodeURIComponent(testRunId)}`,
     developmentData: "/development-data",
@@ -87,6 +89,21 @@ const MOCK_MODE = false;
     return request(ENDPOINTS.sources);
   }
 
+  async function sourceFilings() {
+    if (useMockMode()) {
+      return [];
+    }
+    return request(ENDPOINTS.sourceFilings);
+  }
+
+  async function pollSecEdgar(force) {
+    if (useMockMode()) {
+      return {source_name: "SEC EDGAR", ingested_count: 0, skipped_count: 0, filings: []};
+    }
+    const suffix = force ? "?force=true" : "";
+    return request(`${ENDPOINTS.secEdgarPoll}${suffix}`, {method: "POST"});
+  }
+
   async function health() {
     if (useMockMode()) {
       return {status: "ok", service: "mock"};
@@ -130,6 +147,8 @@ const MOCK_MODE = false;
     recentEvents,
     eventDetail,
     sourceStatus,
+    sourceFilings,
+    pollSecEdgar,
     health,
     startTestRun,
     testRuns,

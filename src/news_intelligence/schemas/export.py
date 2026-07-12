@@ -18,6 +18,9 @@ from news_intelligence.models import (
     ProcessingLineage,
     RawNewsItem,
     ResolvedEntity,
+    SourceConnectorStatus,
+    SourceIngestedFiling,
+    SourceIngestionRun,
 )
 
 PUBLIC_MODELS: tuple[type[BaseModel], ...] = (
@@ -31,6 +34,9 @@ PUBLIC_MODELS: tuple[type[BaseModel], ...] = (
     NewsSignal,
     ProcessingLineage,
     NewsAnalysisResult,
+    SourceConnectorStatus,
+    SourceIngestedFiling,
+    SourceIngestionRun,
 )
 
 

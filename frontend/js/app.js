@@ -2,6 +2,7 @@
   const state = {
     result: null,
     sources: [],
+    sourceFilings: [],
     selectedStage: 0,
     selectedPanel: "signal",
     selectedJson: "raw_items",
@@ -25,6 +26,7 @@
     loadFixture(window.NewsFixtures.list[0].id);
     renderAll();
     refreshSources();
+    refreshSourceFilings();
     refreshRecent();
     refreshTestRuns();
     checkHealth(false);
@@ -38,7 +40,8 @@
       "country", "market", "clear-form", "event-summary", "pipeline", "impact-sort",
       "impact-table", "request-id", "panel-signal", "panel-evidence", "panel-cluster",
       "panel-json", "panel-sources", "panel-developer", "json-selector", "json-viewer",
-      "copy-json", "download-json", "recent-events", "refresh-recent", "error-panel",
+      "copy-json", "download-json", "recent-events", "refresh-recent", "source-status",
+      "source-filings", "poll-sec-edgar", "refresh-source-filings", "error-panel",
       "health-check", "clear-state", "reload-fixtures", "simulate-failure", "raw-request",
       "raw-response", "copy-event-id", "copy-cluster-id", "start-test-run",
       "delete-current-test-run", "reset-development-data", "refresh-test-runs",
@@ -79,6 +82,8 @@
     elements["copy-json"].addEventListener("click", () => copyText(elements["json-viewer"].textContent || ""));
     elements["download-json"].addEventListener("click", downloadJson);
     elements["refresh-recent"].addEventListener("click", refreshRecent);
+    elements["poll-sec-edgar"].addEventListener("click", pollSecEdgar);
+    elements["refresh-source-filings"].addEventListener("click", refreshSourceFilings);
     elements["recent-events"].addEventListener("click", loadRecentDetail);
     elements["health-check"].addEventListener("click", () => checkHealth(true));
     elements["start-test-run"].addEventListener("click", startNewTestRun);
@@ -267,7 +272,8 @@
   }
 
   function renderSources() {
-    elements["panel-sources"].innerHTML = window.NewsRenderers.renderSources(state.sources);
+    elements["source-status"].innerHTML = window.NewsRenderers.renderSources(state.sources);
+    elements["source-filings"].innerHTML = window.NewsRenderers.renderSourceFilings(state.sourceFilings);
   }
 
   function renderJsonOptions() {
@@ -340,6 +346,33 @@
       renderSources();
     } catch (error) {
       state.sources = [];
+      showError(error);
+    }
+  }
+
+  async function refreshSourceFilings() {
+    try {
+      state.sourceFilings = await window.NewsApi.sourceFilings();
+      renderSources();
+    } catch (error) {
+      state.sourceFilings = [];
+      if (!window.NewsApi.isMockMode()) {
+        showError(error);
+      }
+      renderSources();
+    }
+  }
+
+  async function pollSecEdgar() {
+    hideError();
+    try {
+      const result = await window.NewsApi.pollSecEdgar(true);
+      state.lastResponse = result;
+      await refreshSources();
+      await refreshSourceFilings();
+      await refreshRecent();
+      renderDeveloper();
+    } catch (error) {
       showError(error);
     }
   }

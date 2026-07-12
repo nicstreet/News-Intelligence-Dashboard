@@ -29,6 +29,10 @@ from news_intelligence.models.contracts import (
     SignalDirection,
     SignalEvidence,
     SignalMetrics,
+    SourceConnectorState,
+    SourceConnectorStatus,
+    SourceIngestedFiling,
+    SourceIngestionRun,
     StageStatus,
     StrategyRole,
 )
@@ -62,6 +66,10 @@ __all__ = [
     "SignalDirection",
     "SignalEvidence",
     "SignalMetrics",
+    "SourceConnectorState",
+    "SourceConnectorStatus",
+    "SourceIngestedFiling",
+    "SourceIngestionRun",
     "StageStatus",
     "StrategyRole",
 ]

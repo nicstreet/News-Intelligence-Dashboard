@@ -8,6 +8,8 @@ from fastapi import APIRouter, Body, HTTPException
 from news_intelligence.ingestion.adapters import coerce_raw_news_items
 from news_intelligence.pipeline import NewsIntelligencePipeline
 from news_intelligence.schemas.export import public_json_schemas
+from news_intelligence.sources.sec_edgar import SecEdgarConnector
+from news_intelligence.sources.service import SourceIngestionService
 
 router = APIRouter()
 pipeline = NewsIntelligencePipeline()
@@ -123,9 +125,33 @@ async def delete_development_data() -> dict[str, Any]:
     return {"deleted": pipeline.repositories.delete_development_data()}
 
 
+@router.post("/sources/sec-edgar/poll")
+async def poll_sec_edgar(force: bool = False) -> dict[str, Any]:
+    service = SourceIngestionService(pipeline)
+    connector = SecEdgarConnector(pipeline.config, clock=pipeline.clock)
+    result = service.ingest(connector, force=force)
+    return result.model_dump(mode="json")
+
+
+@router.get("/sources/filings/recent")
+async def recent_source_filings(limit: int = 50) -> list[dict[str, object]]:
+    return SourceIngestionService(pipeline).recent_filings(limit=limit)
+
+
 @router.get("/sources/status")
 async def source_status() -> list[dict[str, Any]]:
-    return pipeline.config.source_status()
+    statuses = pipeline.config.source_status()
+    service = SourceIngestionService(pipeline)
+    sec_status = service.status_for(SecEdgarConnector(pipeline.config, clock=pipeline.clock))
+    merged: dict[str, dict[str, Any]] = {
+        f"{status.get('source_name')}:{status.get('connector_type')}": status
+        for status in statuses
+    }
+    merged[f"{sec_status.source_name}:{sec_status.connector_type}"] = sec_status.model_dump(
+        mode="json"
+    )
+    return list(merged.values())
+
 
 
 @router.get("/schemas")

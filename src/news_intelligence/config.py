@@ -28,6 +28,7 @@ class NewsIntelligenceConfig:
     source_credibility: dict[str, Any]
     freshness_half_lives: dict[str, Any]
     runtime: dict[str, Any]
+    sec_edgar: dict[str, Any]
 
     @property
     def rules_version(self) -> str:
@@ -51,6 +52,18 @@ class NewsIntelligenceConfig:
         if configured:
             return configured
         return str(self.runtime.get("environment", "development"))
+
+    @property
+    def sec_edgar_user_agent(self) -> str:
+        configured = os.environ.get("SEC_EDGAR_USER_AGENT")
+        if configured:
+            return configured
+        return str(
+            self.sec_edgar.get(
+                "user_agent",
+                "News Intelligence Dashboard contact@example.com",
+            )
+        )
 
     def rules(self) -> list[dict[str, Any]]:
         rules = self.event_rules.get("rules", [])
@@ -112,4 +125,5 @@ def load_config(config_dir: Path | None = None) -> NewsIntelligenceConfig:
         source_credibility=_load_yaml(directory / "source-credibility.yaml"),
         freshness_half_lives=_load_yaml(directory / "freshness-half-lives.yaml"),
         runtime=_load_yaml(directory / "runtime.yaml"),
+        sec_edgar=_load_yaml(directory / "sec-edgar.yaml"),
     )

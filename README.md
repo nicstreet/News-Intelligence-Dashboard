@@ -8,14 +8,14 @@ Not financial advice. The generated signals are research artifacts and are not a
 
 ## What It Does
 
-- Normalises raw news payloads from the API, CLI, dashboard fixtures, or future source adapters.
+- Normalises raw news payloads from the API, CLI, dashboard fixtures, or source adapters.
 - Classifies events with deterministic rules from `config/event-rules.yaml`.
 - Resolves affected instruments and related ETFs/sectors from `config/instrument-relationships.yaml`.
 - Groups articles into event clusters with explicit `NEW_EVENT`, `DUPLICATE`, and `MATERIAL_UPDATE` handling.
 - Keeps `article_count`, `duplicate_count`, and `update_count` separate.
 - Preserves event versions and signal snapshots when material facts change.
 - Scores instrument impact, confidence, quality, freshness, and signal direction separately.
-- Provides a FastAPI backend, SQLite storage, CLI entry point, and static dashboard.
+- Provides a FastAPI backend, SQLite storage, CLI entry point, static dashboard, and SEC EDGAR ingestion connector.
 - Supports isolated dashboard test runs so fixtures do not aggregate with historical development data.
 
 ## Current Status
@@ -31,7 +31,7 @@ Implemented:
 
 Intentionally not implemented yet:
 
-- Live external news/source connectors.
+- Additional external news/source connectors beyond SEC EDGAR.
 - LLM or machine-learning classification.
 - Broker/order-management integration.
 - Production authentication and multi-user permissions.
@@ -72,6 +72,14 @@ For deterministic fixture testing:
 6. Use `Reset Development Data` to delete development/test records while preserving production-labelled records.
 
 The active `test_run_id` is displayed in the Test panel. Previous test runs remain listed until they are explicitly deleted or development data is reset.
+
+For SEC ingestion:
+
+1. Open the `Sources` tab.
+2. Review connector status.
+3. Click `Poll SEC EDGAR 8-Ks`.
+4. Inspect recent ingested filings.
+5. Click a recent event to inspect the classified event, cluster, impacts, and signal JSON.
 
 ## Core Data Flow
 
@@ -156,6 +164,8 @@ Implemented endpoints:
 | `GET` | `/test-runs` | List historical test runs |
 | `DELETE` | `/test-runs/{test_run_id}` | Delete records for one test run |
 | `DELETE` | `/development-data` | Delete development/test records only |
+| `POST` | `/sources/sec-edgar/poll` | Poll configured SEC EDGAR companies for new 8-K filings |
+| `GET` | `/sources/filings/recent` | List recently ingested source filings |
 | `GET` | `/sources/status` | Show configured source status |
 | `GET` | `/schemas` | Export public JSON Schemas |
 | `GET` | `/health` | Health check |
@@ -228,6 +238,28 @@ Valid values:
 
 Fixture-generated records should be stored as `test` or `development`, never `production`.
 
+SEC EDGAR ingestion is configured in `config/sec-edgar.yaml`. The first connector is intentionally restricted to:
+
+```text
+NVDA, AMD, AAPL, XOM, JPM, MRNA, BA
+```
+
+The connector currently polls 8-K filings only. It captures CIK, accession number, company, form type, filing time, filing URL, primary document URL, and filing sections before converting the filing into `RawNewsItem`.
+
+SEC requests use an identifying User-Agent from config:
+
+```yaml
+user_agent: News Intelligence Dashboard street.nic@gmail.com
+```
+
+Override it without editing config:
+
+```bash
+SEC_EDGAR_USER_AGENT="Your App Name your.email@example.com"
+```
+
+The connector rate-limits requests below SEC's published max request rate, retries transient failures, and skips filings whose accession number has already been stored.
+
 ## Tests And Validation
 
 Run the full test suite:
@@ -251,9 +283,15 @@ python -m mypy src tests
 Current validation state at the time this README was written:
 
 ```text
-python -m pytest        26 passed
+python -m pytest        28 passed, 1 skipped
 python -m ruff check .  passed
 python -m mypy src tests passed
+```
+
+The live SEC integration test is opt-in:
+
+```bash
+NEWS_INTELLIGENCE_LIVE_SEC=1 SEC_EDGAR_USER_AGENT="Your App Name email@example.com" python -m pytest tests/integration/test_sec_edgar_live.py
 ```
 
 ## JSON Contracts
@@ -338,7 +376,7 @@ Generated SQLite databases are ignored by Git. The repository boundary is intent
 
 ## Roadmap
 
-Next sensible increment:
+Current source adapter pattern:
 
 ```text
 Source adapter interface
@@ -351,11 +389,10 @@ Source adapter interface
 
 Likely source sequence:
 
-1. SEC EDGAR
-2. UK RNS or company investor-relations feeds
-3. Japan TDnet
-4. Macro release feeds
-5. Licensed global news provider
+1. UK RNS or company investor-relations feeds
+2. Japan TDnet
+3. Macro release feeds
+4. Licensed global news provider
 
 Later platform increments:
 

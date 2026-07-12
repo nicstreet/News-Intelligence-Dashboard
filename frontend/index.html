@@ -172,7 +172,33 @@
           </div>
           <pre id="json-viewer" tabindex="0"></pre>
         </div>
-        <div id="panel-sources" class="tab-panel hidden"></div>
+        <div id="panel-sources" class="tab-panel hidden">
+          <div class="section-heading">
+            <h3>Source Connectors</h3>
+            <button id="poll-sec-edgar" type="button">Poll SEC EDGAR 8-Ks</button>
+          </div>
+          <div id="source-status"></div>
+          <div class="section-heading">
+            <h3>Ingested Filings</h3>
+            <button id="refresh-source-filings" type="button">Refresh Filings</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Filing time</th>
+                  <th>Ticker</th>
+                  <th>Form</th>
+                  <th>Company</th>
+                  <th>Accession</th>
+                  <th>Sections</th>
+                  <th>Event</th>
+                </tr>
+              </thead>
+              <tbody id="source-filings"></tbody>
+            </table>
+          </div>
+        </div>
         <div id="panel-developer" class="tab-panel hidden">
           <div class="metric-grid">
             <div class="metric">

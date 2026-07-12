@@ -217,6 +217,23 @@ rules:
     expected_persistence: intraday
     roles: [RISK_OVERLAY, VETO]
     contradictions_detected: true
+  - id: sec_8k_current_report
+    priority: 60
+    event_group: sec_filing
+    event_type: regulatory_legal
+    event_subtype: sec_8k_current_report
+    event_status: confirmed
+    match:
+      all: ["form 8-k", "sec edgar"]
+      any: ["current report", "item", "filing"]
+    direction: neutral
+    directional_strength: 0.0
+    confidence: 0.64
+    quality: 0.9
+    surprise: 0.05
+    novelty: 0.25
+    expected_persistence: intraday
+    roles: [RISK_OVERLAY]
   - id: unknown
     priority: 0
     event_group: unknown

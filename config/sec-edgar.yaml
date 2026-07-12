@@ -1,0 +1,36 @@
+version: sec-edgar-1.0.0
+enabled: true
+source_name: SEC EDGAR
+source_type: regulatory
+country_or_region: US
+connector_type: sec_edgar
+user_agent: News Intelligence Dashboard street.nic@gmail.com
+base_url: https://data.sec.gov
+archives_base_url: https://www.sec.gov/Archives/edgar/data
+poll_interval_seconds: 300
+max_requests_per_second: 5
+timeout_seconds: 15
+max_retries: 3
+forms: ["8-K"]
+companies:
+  - symbol: NVDA
+    cik: "0001045810"
+    company: NVIDIA CORP
+  - symbol: AMD
+    cik: "0000002488"
+    company: ADVANCED MICRO DEVICES INC
+  - symbol: AAPL
+    cik: "0000320193"
+    company: APPLE INC
+  - symbol: XOM
+    cik: "0000034088"
+    company: EXXON MOBIL CORP
+  - symbol: JPM
+    cik: "0000019617"
+    company: JPMORGAN CHASE & CO
+  - symbol: MRNA
+    cik: "0001682852"
+    company: MODERNA INC
+  - symbol: BA
+    cik: "0000012927"
+    company: BOEING CO

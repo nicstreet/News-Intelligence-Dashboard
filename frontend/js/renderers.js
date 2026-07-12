@@ -214,6 +214,21 @@
     </div>`;
   }
 
+  function renderSourceFilings(filings) {
+    if (!filings || filings.length === 0) {
+      return `<tr><td colspan="7">No ingested filings available.</td></tr>`;
+    }
+    return filings.map((filing) => `<tr>
+      <td>${escapeHtml(filing.filing_time || "n/a")}</td>
+      <td>${escapeHtml(filing.ticker || "n/a")}</td>
+      <td>${escapeHtml(filing.form_type || "n/a")}</td>
+      <td>${escapeHtml(filing.company || "n/a")}</td>
+      <td><a href="${escapeHtml(filing.filing_url || "#")}" target="_blank" rel="noopener noreferrer">${escapeHtml(filing.accession_number || "n/a")}</a></td>
+      <td>${escapeHtml((filing.filing_sections || []).join(", ") || "n/a")}</td>
+      <td>${escapeHtml(filing.event_id || "pending")}</td>
+    </tr>`).join("");
+  }
+
   function renderRecent(events) {
     if (!events || events.length === 0) {
       return `<tr><td colspan="8">No recent events available.</td></tr>`;
@@ -262,6 +277,7 @@
     renderEvidence,
     renderCluster,
     renderSources,
+    renderSourceFilings,
     renderRecent,
     renderTestRuns,
     renderError

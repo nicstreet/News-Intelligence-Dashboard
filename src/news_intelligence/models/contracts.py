@@ -103,6 +103,13 @@ class RuntimeEnvironment(StrEnum):
     PRODUCTION = "production"
 
 
+class SourceConnectorState(StrEnum):
+    OK = "OK"
+    DEGRADED = "DEGRADED"
+    DISABLED = "DISABLED"
+    ERROR = "ERROR"
+
+
 class ClusterItemClassification(StrEnum):
     NEW_EVENT = "NEW_EVENT"
     DUPLICATE = "DUPLICATE"
@@ -114,6 +121,72 @@ class NewsSource(ContractModel):
     source_type: str = "unknown"
     source_url: str | None = None
     source_credibility: Score = 0.5
+
+
+class SourceConnectorStatus(ContractModel):
+    source_name: str
+    country_or_region: str = "unknown"
+    source_class: str = "unknown"
+    connector_type: str
+    enabled: bool
+    current_status: SourceConnectorState
+    last_successful_ingestion: datetime | None = None
+    last_failure: str | None = None
+    last_polled_at: datetime | None = None
+    next_poll_after: datetime | None = None
+    items_ingested: int = Field(ge=0, default=0)
+
+    @field_validator("last_successful_ingestion", "last_polled_at", "next_poll_after")
+    @classmethod
+    def _normalise_datetime(cls, value: datetime | None) -> datetime | None:
+        return ensure_utc(value) if value is not None else None
+
+
+class SourceIngestedFiling(ContractModel):
+    source_record_id: str
+    source_name: str
+    connector_type: str
+    ticker: str
+    cik: str
+    accession_number: str
+    company: str
+    form_type: str
+    filing_time: datetime
+    filing_url: str
+    primary_document_url: str
+    filing_sections: list[str] = Field(default_factory=list)
+    headline: str
+    ingested_at: datetime
+    raw_id: str | None = None
+    event_id: str | None = None
+    cluster_id: str | None = None
+    test_run_id: str | None = None
+    record_environment: RuntimeEnvironment = RuntimeEnvironment.DEVELOPMENT
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("filing_time", "ingested_at")
+    @classmethod
+    def _normalise_datetime(cls, value: datetime) -> datetime:
+        return ensure_utc(value)
+
+
+class SourceIngestionRun(ContractModel):
+    source_name: str
+    connector_type: str
+    started_at: datetime
+    completed_at: datetime
+    fetched_count: int = Field(ge=0)
+    ingested_count: int = Field(ge=0)
+    skipped_count: int = Field(ge=0)
+    error_count: int = Field(ge=0)
+    errors: list[str] = Field(default_factory=list)
+    filings: list[SourceIngestedFiling] = Field(default_factory=list)
+    status: SourceConnectorStatus
+
+    @field_validator("started_at", "completed_at")
+    @classmethod
+    def _normalise_datetime(cls, value: datetime) -> datetime:
+        return ensure_utc(value)
 
 
 class RawNewsItem(ContractModel):
