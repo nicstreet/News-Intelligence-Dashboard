@@ -41,7 +41,7 @@
       "impact-table", "request-id", "panel-signal", "panel-evidence", "panel-cluster",
       "panel-json", "panel-sources", "panel-developer", "json-selector", "json-viewer",
       "open-sources", "copy-json", "download-json", "recent-events", "refresh-recent", "source-status",
-      "source-filings", "poll-sec-edgar", "refresh-source-filings", "error-panel",
+      "source-filings", "poll-sec-edgar", "sec-edgar-poll-status", "refresh-source-filings", "error-panel",
       "health-check", "clear-state", "reload-fixtures", "simulate-failure", "raw-request",
       "raw-response", "copy-event-id", "copy-cluster-id", "start-test-run",
       "delete-current-test-run", "reset-development-data", "refresh-test-runs",
@@ -366,16 +366,30 @@
 
   async function pollSecEdgar() {
     hideError();
+    setSecPollStatus("SEC: polling...", "processing");
+    elements["poll-sec-edgar"].disabled = true;
     try {
       const result = await window.NewsApi.pollSecEdgar(true);
       state.lastResponse = result;
       await refreshSources();
       await refreshSourceFilings();
       await refreshRecent();
+      setSecPollStatus(`SEC: ${result.ingested_count || 0} new, ${result.skipped_count || 0} skipped`, "");
       renderDeveloper();
     } catch (error) {
+      setSecPollStatus("SEC: failed", "error");
       showError(error);
+    } finally {
+      elements["poll-sec-edgar"].disabled = false;
     }
+  }
+
+  function setSecPollStatus(message, stateClass) {
+    const status = elements["sec-edgar-poll-status"];
+    status.textContent = message;
+    status.classList.toggle("muted", !stateClass);
+    status.classList.toggle("processing", stateClass === "processing");
+    status.classList.toggle("error", stateClass === "error");
   }
 
   async function refreshRecent() {

@@ -137,7 +137,8 @@ pre {
 .section-heading,
 .json-toolbar,
 .tabs,
-.developer-grid {
+.developer-grid,
+.source-actions {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -157,6 +158,14 @@ pre {
 
 .status-pill.muted {
   color: var(--muted);
+}
+
+.status-pill.processing {
+  color: var(--warn);
+}
+
+.status-pill.error {
+  color: var(--bad);
 }
 
 .layout {
