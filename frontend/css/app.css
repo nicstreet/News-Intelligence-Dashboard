@@ -612,6 +612,16 @@ label {
   padding: 0;
 }
 
+.retention-preview {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0e151d;
+}
+
 .hidden {
   display: none !important;
 }

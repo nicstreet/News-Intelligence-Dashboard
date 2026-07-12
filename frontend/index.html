@@ -294,10 +294,16 @@
       <section class="panel storage-panel view-section view-hidden" data-views="storage" aria-labelledby="storage-heading">
         <div class="section-heading">
           <h2 id="storage-heading">Storage / Retention</h2>
-          <button id="refresh-storage" type="button">Refresh</button>
+          <div class="source-actions">
+            <span id="retention-apply-status" class="status-pill muted">Retention: idle</span>
+            <button id="dry-run-retention" type="button">Dry Run</button>
+            <button id="apply-retention-policy" type="button">Apply Retention Policy</button>
+            <button id="refresh-storage" type="button">Refresh</button>
+          </div>
         </div>
         <div id="storage-summary" class="metric-grid"></div>
         <div id="storage-visualisation" class="storage-bars" aria-live="polite"></div>
+        <div id="retention-preview"></div>
         <div class="table-wrap">
           <table>
             <thead>

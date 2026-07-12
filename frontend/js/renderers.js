@@ -583,6 +583,51 @@
     return Math.round(perDay * activeRetentionDays(layer, retention));
   }
 
+  function renderRetentionPlan(plan) {
+    if (!plan) {
+      return "";
+    }
+    const layers = plan.layers || [];
+    const rows = layers.length
+      ? layers.map((layer) => `<tr>
+        <td>${escapeHtml(layer.layer_name || layer.layer_key)}</td>
+        <td>${layer.adjustable ? `${escapeHtml(layer.retention_days || "n/a")} days` : "Permanent / audit"}</td>
+        <td>${escapeHtml(layer.cutoff_at || "n/a")}</td>
+        <td>${escapeHtml(layer.candidate_records || 0)}</td>
+        <td>${escapeHtml(formatBytes(layer.candidate_bytes || 0))}</td>
+        <td>${escapeHtml(layer.skipped_production_records || 0)}</td>
+        <td>${escapeHtml(layer.skipped_missing_timestamp_records || 0)}</td>
+        <td>${escapeHtml(layer.deleted_records || 0)}</td>
+      </tr>`).join("")
+      : `<tr><td colspan="8">No retention layers available.</td></tr>`;
+    const mode = String(plan.mode || "dry_run").replaceAll("_", " ").toUpperCase();
+    return `<section class="retention-preview">
+      <div class="metric-grid">
+        ${metric("Retention mode", mode)}
+        ${metric("Eligible records", plan.total_candidate_records || 0)}
+        ${metric("Eligible storage", formatBytes(plan.total_candidate_bytes || 0))}
+        ${metric("Deleted records", plan.total_deleted_records || 0)}
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Retention</th>
+              <th>Cutoff</th>
+              <th>Eligible</th>
+              <th>Bytes</th>
+              <th>Production skipped</th>
+              <th>No timestamp</th>
+              <th>Deleted</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>`;
+  }
+
   function renderError(error) {
     const detail = error.detail ? JSON.stringify(error.detail, null, 2) : "";
     return `<strong>${escapeHtml(error.stage || "Error")}: ${escapeHtml(error.message || error.summary || "Request failed")}</strong>
@@ -617,6 +662,7 @@
     renderStorageSummary,
     renderStorageVisualisation,
     renderStorageLayers,
+    renderRetentionPlan,
     renderError
   };
 })();

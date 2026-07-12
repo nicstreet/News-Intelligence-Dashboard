@@ -83,7 +83,7 @@ It is organised as a left-navigation operational console:
 - `JSON / Audit`: raw contract inspection.
 - `Developer`: deterministic fixtures, test-run controls, and reset controls.
 
-The top-right `Options` menu opens less-frequent operational views, including `Sources`, `Developer`, and `Storage / Retention`. The storage view summarises current payload usage by layer, shows the measured days/ticker span, and lets retention sliders model projected storage without deleting records.
+The top-right `Options` menu opens less-frequent operational views, including `Sources`, `Developer`, and `Storage / Retention`. The storage view summarises current payload usage by layer, shows the measured days/ticker span, lets retention sliders model projected storage, and provides a dry-run/apply workflow for development/test cleanup.
 
 For deterministic fixture testing:
 
@@ -200,6 +200,8 @@ Implemented endpoints:
 | `POST` | `/outputs/file-drop/signals/{signal_id}` | Export one signal payload to file drop |
 | `POST` | `/outputs/file-drop/latest` | Export recent signal payloads to file drop |
 | `GET` | `/storage/layers` | Summarise storage by layer and retention profile |
+| `POST` | `/storage/retention/dry-run` | Preview eligible retention cleanup by layer |
+| `POST` | `/storage/retention/apply` | Apply retention cleanup to eligible development/test records |
 | `GET` | `/schemas` | Export public JSON Schemas |
 | `GET` | `/health` | Health check |
 | `GET` | `/` | Dashboard |
@@ -423,7 +425,14 @@ SQLite is used for the MVP. Repositories store JSON payloads for:
 
 Generated SQLite databases are ignored by Git. The repository boundary is intentionally simple so SQLite can later be replaced by PostgreSQL without changing the domain contracts.
 
-Storage-retention defaults live in `config/retention.yaml`. `GET /storage/layers` reports logical JSON payload bytes, record count, ticker count, days worth of retained data, estimated bytes per day, and projected storage for adjustable layers. The dashboard sliders are modelling controls only; they do not purge data until an explicit retention-apply workflow is added.
+Storage-retention defaults live in `config/retention.yaml`. `GET /storage/layers` reports logical JSON payload bytes, record count, ticker count, days worth of retained data, estimated bytes per day, and projected storage for adjustable layers.
+
+Retention enforcement is explicit:
+
+- `POST /storage/retention/dry-run` previews eligible records/files by layer.
+- `POST /storage/retention/apply` deletes only eligible development/test/unlabelled records and configured file-drop JSON.
+- Production-labelled records are always skipped.
+- Canonical events, clusters, source lineage, and calibration layers remain audit/permanent layers in the current policy.
 
 ## Adding An Event Rule
 

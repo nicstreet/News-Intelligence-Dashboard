@@ -11,6 +11,7 @@
     fileDrop: null,
     storage: null,
     storageRetention: {},
+    retentionPlan: null,
     currentView: "events",
     selectedStage: 0,
     selectedPanel: "signal",
@@ -68,7 +69,9 @@
       "file-drop-result", "refresh-event-list", "event-list", "event-detail-meta",
       "event-detail-summary", "event-detail-signal", "event-detail-impacts",
       "event-detail-evidence", "event-detail-cluster", "event-detail-json",
-      "refresh-storage", "storage-summary", "storage-visualisation", "storage-layers"
+      "refresh-storage", "storage-summary", "storage-visualisation", "storage-layers",
+      "dry-run-retention", "apply-retention-policy", "retention-preview",
+      "retention-apply-status"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
     });
@@ -132,6 +135,8 @@
     elements["refresh-calibration"].addEventListener("click", refreshCalibration);
     elements["refresh-file-drop"].addEventListener("click", refreshFileDrop);
     elements["refresh-storage"].addEventListener("click", refreshStorage);
+    elements["dry-run-retention"].addEventListener("click", dryRunRetention);
+    elements["apply-retention-policy"].addEventListener("click", applyRetentionPolicy);
     elements["export-latest-file-drop"].addEventListener("click", exportLatestFileDrop);
     elements["recent-events"].addEventListener("click", loadRecentDetail);
     elements["event-list"].addEventListener("click", loadRecentDetail);
@@ -403,6 +408,9 @@
       state.storage,
       state.storageRetention
     );
+    elements["retention-preview"].innerHTML = window.NewsRenderers.renderRetentionPlan(
+      state.retentionPlan
+    );
   }
 
   function renderJsonOptions() {
@@ -555,6 +563,46 @@
         showError(error);
       }
       renderStorage();
+    }
+  }
+
+  async function dryRunRetention() {
+    hideError();
+    setRetentionStatus("Retention: dry run...", "processing");
+    elements["dry-run-retention"].disabled = true;
+    try {
+      state.retentionPlan = await window.NewsApi.storageRetentionDryRun(state.storageRetention);
+      state.lastResponse = state.retentionPlan;
+      renderStorage();
+      renderDeveloper();
+      setRetentionStatus("Retention: dry run ready", "");
+    } catch (error) {
+      setRetentionStatus("Retention: dry run failed", "error");
+      showError(error);
+    } finally {
+      elements["dry-run-retention"].disabled = false;
+    }
+  }
+
+  async function applyRetentionPolicy() {
+    const confirmed = window.confirm("Apply retention policy? This deletes eligible development/test records and configured file-drop JSON only. Production-labelled records are retained.");
+    if (!confirmed) return;
+    hideError();
+    setRetentionStatus("Retention: applying...", "processing");
+    elements["apply-retention-policy"].disabled = true;
+    try {
+      state.retentionPlan = await window.NewsApi.applyStorageRetention(state.storageRetention);
+      state.lastResponse = state.retentionPlan;
+      await refreshStorage();
+      await refreshRecent();
+      await refreshSourceFilings();
+      renderAll();
+      setRetentionStatus(`Retention: ${state.retentionPlan.total_deleted_records || 0} deleted`, "");
+    } catch (error) {
+      setRetentionStatus("Retention: apply failed", "error");
+      showError(error);
+    } finally {
+      elements["apply-retention-policy"].disabled = false;
     }
   }
 
@@ -844,6 +892,14 @@
     if (!input) return;
     state.storageRetention[input.dataset.retentionLayer] = Number(input.value);
     renderStorage();
+  }
+
+  function setRetentionStatus(message, stateClass) {
+    const status = elements["retention-apply-status"];
+    status.textContent = message;
+    status.classList.toggle("muted", !stateClass);
+    status.classList.toggle("processing", stateClass === "processing");
+    status.classList.toggle("error", stateClass === "error");
   }
 
   function currentEvent() {

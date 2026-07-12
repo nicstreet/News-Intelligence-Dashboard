@@ -20,6 +20,8 @@ const MOCK_MODE = false;
     fileDropStatus: "/outputs/file-drop/status",
     fileDropLatest: "/outputs/file-drop/latest",
     storageLayers: "/storage/layers",
+    retentionDryRun: "/storage/retention/dry-run",
+    retentionApply: "/storage/retention/apply",
     testRuns: "/test-runs",
     testRun: (testRunId) => `/test-runs/${encodeURIComponent(testRunId)}`,
     developmentData: "/development-data",
@@ -172,6 +174,43 @@ const MOCK_MODE = false;
     return request(ENDPOINTS.storageLayers);
   }
 
+  async function storageRetentionDryRun(retentionDays) {
+    if (useMockMode()) {
+      return mockRetentionPlan("dry_run");
+    }
+    return request(ENDPOINTS.retentionDryRun, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({retention_days: retentionDays || {}})
+    });
+  }
+
+  async function applyStorageRetention(retentionDays) {
+    if (useMockMode()) {
+      return mockRetentionPlan("applied");
+    }
+    return request(ENDPOINTS.retentionApply, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({retention_days: retentionDays || {}})
+    });
+  }
+
+  function mockRetentionPlan(mode) {
+    return {
+      schema_version: "1.0.0",
+      retention_version: "mock",
+      mode,
+      generated_at: new Date().toISOString(),
+      safety: "Mock retention plan",
+      total_candidate_records: 0,
+      total_candidate_bytes: 0,
+      total_deleted_records: 0,
+      total_deleted_bytes: 0,
+      layers: []
+    };
+  }
+
   async function exportLatestFileDrop(limit) {
     if (useMockMode()) {
       return [];
@@ -233,6 +272,8 @@ const MOCK_MODE = false;
     calibrationReport,
     fileDropStatus,
     storageLayers,
+    storageRetentionDryRun,
+    applyStorageRetention,
     exportLatestFileDrop,
     health,
     startTestRun,

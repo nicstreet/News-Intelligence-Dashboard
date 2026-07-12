@@ -272,6 +272,11 @@ def test_dashboard_exposes_update_counts_and_versions() -> None:
     assert "refreshStorage" in app
     assert "renderStorageLayers" in renderers
     assert "data-retention-layer" in renderers
+    assert "dry-run-retention" in app
+    assert "apply-retention-policy" in app
+    assert "storageRetentionDryRun" in app
+    assert "applyStorageRetention" in app
+    assert "renderRetentionPlan" in renderers
 
 
 def test_takeover_fixture_isolated_across_test_runs(isolated_database: Path) -> None:

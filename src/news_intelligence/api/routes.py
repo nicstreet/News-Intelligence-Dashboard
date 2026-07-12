@@ -20,6 +20,7 @@ from news_intelligence.universe import FavouritesUniverseService
 router = APIRouter()
 pipeline = NewsIntelligencePipeline()
 NEWS_PAYLOAD = Body(...)
+RETENTION_PAYLOAD = Body(default=None)
 
 
 @router.post("/news/analyse")
@@ -209,6 +210,30 @@ async def file_drop_status() -> dict[str, Any]:
 @router.get("/storage/layers")
 async def storage_layers() -> dict[str, Any]:
     return StorageLayerSummaryService(pipeline.config, pipeline.repositories).summary()
+
+
+@router.post("/storage/retention/dry-run")
+async def storage_retention_dry_run(
+    payload: dict[str, Any] | None = RETENTION_PAYLOAD,
+) -> dict[str, Any]:
+    retention_days = payload.get("retention_days", {}) if isinstance(payload, dict) else {}
+    return StorageLayerSummaryService(
+        pipeline.config,
+        pipeline.repositories,
+        clock=pipeline.clock,
+    ).retention_plan(retention_days)
+
+
+@router.post("/storage/retention/apply")
+async def storage_retention_apply(
+    payload: dict[str, Any] | None = RETENTION_PAYLOAD,
+) -> dict[str, Any]:
+    retention_days = payload.get("retention_days", {}) if isinstance(payload, dict) else {}
+    return StorageLayerSummaryService(
+        pipeline.config,
+        pipeline.repositories,
+        clock=pipeline.clock,
+    ).apply_retention(retention_days)
 
 
 @router.post("/outputs/file-drop/signals/{signal_id}")

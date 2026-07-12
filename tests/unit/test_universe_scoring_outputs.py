@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -190,3 +191,114 @@ def test_storage_layer_summary_reports_current_usage(isolated_database: Path) ->
     assert layers["raw_news"]["ticker_count"] == 1
     assert layers["raw_news"]["adjustable"] is True
     assert summary["total_current_bytes"] >= layers["raw_news"]["current_bytes"]
+
+
+def test_retention_dry_run_and_apply_retains_production_records(
+    isolated_database: Path,
+) -> None:
+    repositories = RepositoryBundle(isolated_database)
+    repositories.raw_news.save(
+        "old_dev",
+        {
+            "raw_id": "old_dev",
+            "headline": "Old development item",
+            "published_at": "2026-05-01T09:00:00Z",
+            "known_ticker": "NVDA",
+            "record_environment": "development",
+        },
+    )
+    repositories.raw_news.save(
+        "old_prod",
+        {
+            "raw_id": "old_prod",
+            "headline": "Old production item",
+            "published_at": "2026-05-01T09:00:00Z",
+            "known_ticker": "NVDA",
+            "record_environment": "production",
+        },
+    )
+    repositories.raw_news.save(
+        "recent_dev",
+        {
+            "raw_id": "recent_dev",
+            "headline": "Recent development item",
+            "published_at": "2026-07-10T09:00:00Z",
+            "known_ticker": "NVDA",
+            "record_environment": "development",
+        },
+    )
+    service = StorageLayerSummaryService(
+        load_config(),
+        repositories,
+        clock=lambda: FIXED_NOW,
+    )
+
+    dry_run = service.retention_plan({"raw_news": 30})
+    raw_plan = _retention_layer(dry_run, "raw_news")
+
+    assert dry_run["mode"] == "dry_run"
+    assert raw_plan["candidate_records"] == 1
+    assert raw_plan["skipped_production_records"] == 1
+    assert repositories.raw_news.get("old_dev") is not None
+
+    applied = service.apply_retention({"raw_news": 30})
+    applied_raw_plan = _retention_layer(applied, "raw_news")
+
+    assert applied["mode"] == "applied"
+    assert applied_raw_plan["deleted_records"] == 1
+    assert repositories.raw_news.get("old_dev") is None
+    assert repositories.raw_news.get("old_prod") is not None
+    assert repositories.raw_news.get("recent_dev") is not None
+
+
+def test_file_drop_retention_only_deletes_configured_development_files(
+    isolated_database: Path,
+) -> None:
+    output_dir = isolated_database.parent / f"file_drop_retention_{isolated_database.stem}"
+    output_dir.mkdir(parents=True)
+    old_test_file = output_dir / "old_test.json"
+    old_prod_file = output_dir / "old_prod.json"
+    outside_file = isolated_database.parent / f"outside_{isolated_database.stem}.json"
+    _write_file_drop_payload(old_test_file, "2026-05-01T09:00:00Z", "test")
+    _write_file_drop_payload(old_prod_file, "2026-05-01T09:00:00Z", "production")
+    _write_file_drop_payload(outside_file, "2026-05-01T09:00:00Z", "test")
+    settings = dict(load_config().file_drop)
+    settings["output_dir"] = str(output_dir)
+    settings["archive_dir"] = str(output_dir / "archive")
+    settings["error_dir"] = str(output_dir / "error")
+    config = replace(load_config(), file_drop=settings)
+    service = StorageLayerSummaryService(
+        config,
+        RepositoryBundle(isolated_database),
+        clock=lambda: FIXED_NOW,
+    )
+
+    applied = service.apply_retention({"file_drop": 30})
+    file_plan = _retention_layer(applied, "file_drop")
+
+    assert file_plan["deleted_records"] == 1
+    assert file_plan["skipped_production_records"] == 1
+    assert not old_test_file.exists()
+    assert old_prod_file.exists()
+    assert outside_file.exists()
+
+
+def _retention_layer(plan: dict[str, object], layer_key: str) -> dict[str, object]:
+    layers = plan["layers"]
+    assert isinstance(layers, list)
+    layer = next(item for item in layers if item["layer_key"] == layer_key)
+    assert isinstance(layer, dict)
+    return layer
+
+
+def _write_file_drop_payload(path: Path, generated_at: str, environment: str) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "generated_at": generated_at,
+                "audit": {"record_environment": environment},
+                "signal": {"instrument": {"symbol": "NVDA"}},
+            }
+        ),
+        encoding="utf-8",
+    )
