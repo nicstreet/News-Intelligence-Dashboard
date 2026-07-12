@@ -55,6 +55,8 @@ Before a filing is converted into `RawNewsItem`, the ingestion service checks `s
 
 The dashboard poll is intentionally latest-window only. For each configured company, the connector considers the newest configured number of matching 8-K filings. Known accessions in that window are skipped, but the connector does not keep walking backward to fill the quota with older filings. This prevents repeated manual polls from gradually backfilling historical 8-K batches.
 
+Future work should add a separate `Backfill SEC History` workflow with date range, company selection, form filters, per-company limits, and dry-run preview. Operational polling should remain latest-window only.
+
 ## Pipeline Flow
 
 ```text
@@ -81,6 +83,13 @@ The `Sources` tab shows:
 - recently ingested filings
 - SEC accession links
 - associated event IDs
+
+Planned UI improvements:
+
+- split the dashboard into clearer operating views for source ingestion, events/clusters, signals, audit JSON, and developer/test controls
+- add source-to-event drilldown from an ingested filing into the generated event and signal snapshots
+- add filters for symbol, form type, source, environment, and time window
+- improve loading, empty, and error states for source polling
 
 ## Tests
 

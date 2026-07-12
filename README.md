@@ -398,6 +398,16 @@ Likely source sequence:
 
 Later platform increments:
 
+- Explicit `Backfill SEC History` workflow with date range, company selection, form filters, per-company limits, dry-run preview, and clear separation from operational polling.
+- Dashboard UI rework into a more logical operating view:
+  - source ingestion and filing queue
+  - events and clusters
+  - active signal details
+  - audit/history JSON
+  - developer/test controls
+- Source-to-event drilldown so an ingested filing can be opened directly into its event, cluster, impacts, and signal snapshots.
+- Filtering and search for filings, events, clusters, symbols, forms, source, environment, and test run.
+- Better empty/loading/error states for long-running ingestion and source failures.
 - Historical outcome calibration.
 - Better source credibility modelling.
 - Configurable persistence backend.
