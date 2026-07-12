@@ -205,11 +205,20 @@ The code is split into replaceable modules:
 - `storage`: SQLite-backed JSON repositories.
 - `api`: FastAPI routes and dashboard hosting.
 
+Design notes:
+
+- [Architecture](docs/architecture.md)
+- [Source Adapter Guide](docs/source-adapters.md)
+- [SEC EDGAR Ingestion](docs/sec-edgar-ingestion.md)
+- [Historical Calibration Design](docs/historical-calibration.md)
+- [File-Drop Integration Contract](docs/file-drop-integration.md)
+- [Manual Frontend Checklist](docs/manual-frontend-checklist.md)
+
 ## Project Layout
 
 ```text
 config/                         Rule, source, freshness, runtime, and instrument config
-docs/                           Manual QA notes
+docs/                           Design docs, source notes, and manual QA notes
 examples/                       Example raw news payloads
 frontend/                       Static dashboard
 src/news_intelligence/          Application package
@@ -285,7 +294,7 @@ python -m mypy src tests
 Current validation state at the time this README was written:
 
 ```text
-python -m pytest        28 passed, 1 skipped
+python -m pytest        29 passed, 1 skipped
 python -m ruff check .  passed
 python -m mypy src tests passed
 ```
@@ -410,6 +419,7 @@ Likely source sequence:
 Later platform increments:
 
 - Explicit `Backfill SEC History` workflow with date range, company selection, form filters, per-company limits, dry-run preview, and clear separation from operational polling.
+- File-drop output adapter for cleansed signal JSON into a trading-app ingest directory.
 - Dashboard UI rework into a more logical operating view:
   - source ingestion and filing queue
   - events and clusters
