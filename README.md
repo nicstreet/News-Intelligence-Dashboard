@@ -378,6 +378,17 @@ Generated SQLite databases are ignored by Git. The repository boundary is intent
 
 ## Roadmap
 
+Delivery milestones:
+
+| Version | Milestone |
+| --- | --- |
+| `v0.1` | Deterministic fixture-driven MVP |
+| `v0.2` | First live authoritative source |
+| `v0.3` | Multi-source ingestion and monitoring |
+| `v0.4` | Historical event calibration |
+| `v0.5` | Strategy and indicator-aggregator integration |
+| `v1.0` | Validated production-ready news intelligence service |
+
 Current source adapter pattern:
 
 ```text
