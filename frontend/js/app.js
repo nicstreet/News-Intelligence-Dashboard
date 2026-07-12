@@ -1,13 +1,15 @@
 (function () {
   const state = {
     result: null,
+    recentEvents: [],
+    selectedEventId: "",
     sources: [],
     sourceFilings: [],
     automation: null,
     universe: null,
     calibration: null,
     fileDrop: null,
-    currentView: "overview",
+    currentView: "events",
     selectedStage: 0,
     selectedPanel: "signal",
     selectedJson: "raw_items",
@@ -43,13 +45,14 @@
 
   function bindElements() {
     [
-      "api-status", "mode-status", "fixture-selector", "load-fixture", "news-form",
+      "api-status", "mode-status", "options-menu", "options-sources",
+      "options-developer", "options-refresh-dashboard", "fixture-selector", "load-fixture", "news-form",
       "toggle-input-mode", "structured-input", "json-input-wrap", "raw-json", "headline",
       "body", "source-name", "source-type", "source-url", "published-at", "known-ticker",
       "country", "market", "clear-form", "event-summary", "pipeline", "impact-sort",
       "impact-table", "request-id", "panel-signal", "panel-evidence", "panel-cluster",
       "panel-json", "panel-sources", "panel-developer", "json-selector", "json-viewer",
-      "open-sources", "copy-json", "download-json", "recent-events", "refresh-recent", "source-status",
+      "copy-json", "download-json", "recent-events", "refresh-recent", "source-status",
       "source-filings", "poll-sec-edgar", "sec-edgar-poll-status", "refresh-source-filings", "error-panel",
       "health-check", "clear-state", "reload-fixtures", "simulate-failure", "raw-request",
       "raw-response", "copy-event-id", "copy-cluster-id", "start-test-run",
@@ -59,7 +62,9 @@
       "refresh-automation", "refresh-universe", "universe-summary", "universe-table",
       "refresh-calibration", "calibration-summary", "calibration-report",
       "refresh-file-drop", "export-latest-file-drop", "file-drop-status",
-      "file-drop-result"
+      "file-drop-result", "refresh-event-list", "event-list", "event-detail-meta",
+      "event-detail-summary", "event-detail-signal", "event-detail-impacts",
+      "event-detail-evidence", "event-detail-cluster", "event-detail-json"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
     });
@@ -95,8 +100,20 @@
     });
     elements["copy-json"].addEventListener("click", () => copyText(elements["json-viewer"].textContent || ""));
     elements["download-json"].addEventListener("click", downloadJson);
-    elements["open-sources"].addEventListener("click", () => activateView("sources"));
+    elements["options-sources"].addEventListener("click", () => {
+      activateView("sources");
+      closeOptionsMenu();
+    });
+    elements["options-developer"].addEventListener("click", () => {
+      activateView("developer");
+      closeOptionsMenu();
+    });
+    elements["options-refresh-dashboard"].addEventListener("click", () => {
+      refreshDashboard();
+      closeOptionsMenu();
+    });
     elements["refresh-recent"].addEventListener("click", refreshRecent);
+    elements["refresh-event-list"].addEventListener("click", refreshRecent);
     elements["poll-sec-edgar"].addEventListener("click", pollSecEdgar);
     elements["poll-due-sources"].addEventListener("click", pollDueSources);
     elements["poll-world-news"].addEventListener("click", pollWorldNews);
@@ -108,6 +125,7 @@
     elements["refresh-file-drop"].addEventListener("click", refreshFileDrop);
     elements["export-latest-file-drop"].addEventListener("click", exportLatestFileDrop);
     elements["recent-events"].addEventListener("click", loadRecentDetail);
+    elements["event-list"].addEventListener("click", loadRecentDetail);
     elements["health-check"].addEventListener("click", () => checkHealth(true));
     elements["start-test-run"].addEventListener("click", startNewTestRun);
     elements["delete-current-test-run"].addEventListener("click", deleteCurrentTestRun);
@@ -257,6 +275,7 @@
     renderCluster();
     renderJsonOptions();
     renderJson();
+    renderEventWorkspace();
     renderSources();
     renderAutomation();
     renderUniverse();
@@ -305,6 +324,40 @@
   function renderSources() {
     elements["source-status"].innerHTML = window.NewsRenderers.renderSources(state.sources);
     elements["source-filings"].innerHTML = window.NewsRenderers.renderSourceFilings(state.sourceFilings);
+  }
+
+  function renderEventWorkspace() {
+    elements["event-list"].innerHTML = window.NewsRenderers.renderEventRows(
+      state.recentEvents,
+      state.selectedEventId
+    );
+    const event = currentEvent();
+    const cluster = currentCluster();
+    const signal = currentSignal();
+    elements["event-detail-meta"].textContent = event
+      ? `${event.event_type || "event"} / ${event.primary_symbol || "market"}`
+      : "Select an event";
+    elements["event-detail-summary"].innerHTML = window.NewsRenderers.renderEventSummary(event);
+    elements["event-detail-signal"].innerHTML = window.NewsRenderers.renderSignal(signal);
+    elements["event-detail-impacts"].innerHTML = renderImpactTable(
+      state.result ? state.result.impacts : []
+    );
+    elements["event-detail-evidence"].innerHTML = window.NewsRenderers.renderEvidence(
+      event,
+      cluster,
+      signal
+    );
+    elements["event-detail-cluster"].innerHTML = window.NewsRenderers.renderCluster(cluster);
+    elements["event-detail-json"].textContent = JSON.stringify(
+      {
+        event,
+        cluster,
+        impacts: state.result ? state.result.impacts : [],
+        signals: state.result ? state.result.signals : []
+      },
+      null,
+      2
+    );
   }
 
   function renderAutomation() {
@@ -541,9 +594,16 @@
   async function refreshRecent() {
     try {
       const events = await window.NewsApi.recentEvents();
-      elements["recent-events"].innerHTML = window.NewsRenderers.renderRecent(events);
+      state.recentEvents = events || [];
+      elements["recent-events"].innerHTML = window.NewsRenderers.renderRecent(
+        state.recentEvents,
+        state.selectedEventId
+      );
+      renderEventWorkspace();
     } catch (error) {
+      state.recentEvents = [];
       elements["recent-events"].innerHTML = window.NewsRenderers.renderRecent([]);
+      renderEventWorkspace();
       if (!window.NewsApi.isMockMode()) {
         showError(error);
       }
@@ -564,10 +624,12 @@
   }
 
   async function loadRecentDetail(event) {
+    if (event.target.closest("a")) return;
     const row = event.target.closest("[data-event-id]");
     if (!row) return;
     try {
       const detail = await window.NewsApi.eventDetail(row.dataset.eventId);
+      state.selectedEventId = row.dataset.eventId;
       state.result = {
         request_id: `reloaded_${row.dataset.eventId}`,
         stages: [],
@@ -589,14 +651,14 @@
   async function checkHealth(showPanel) {
     try {
       const health = await window.NewsApi.health();
-      elements["api-status"].textContent = `API: ${String(health.status || "ok").toUpperCase()}`;
+      elements["api-status"].textContent = `Backend: ${String(health.status || "ok").toUpperCase()}`;
       elements["api-status"].classList.remove("muted");
       if (showPanel) {
         state.lastResponse = health;
         renderDeveloper();
       }
     } catch (error) {
-      elements["api-status"].textContent = "API: OFFLINE";
+      elements["api-status"].textContent = "Backend: OFFLINE";
       elements["api-status"].classList.add("muted");
       if (showPanel) showError(error);
     }
@@ -717,7 +779,9 @@
   }
 
   function updateModeStatus() {
-    elements["mode-status"].textContent = window.NewsApi.isMockMode() ? "MODE: MOCK" : "MODE: LIVE";
+    elements["mode-status"].textContent = window.NewsApi.isMockMode()
+      ? "Runtime: MOCK DATA"
+      : "Runtime: LIVE BACKEND";
   }
 
   function currentEvent() {
@@ -769,5 +833,44 @@
     anchor.download = `${state.selectedJson || "asterius-news-intelligence"}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function refreshDashboard() {
+    await Promise.all([
+      refreshSources(),
+      refreshSourceFilings(),
+      refreshAutomation(),
+      refreshUniverse(),
+      refreshCalibration(),
+      refreshFileDrop(),
+      refreshRecent(),
+      refreshTestRuns(),
+      checkHealth(false)
+    ]);
+  }
+
+  function closeOptionsMenu() {
+    if (elements["options-menu"]) {
+      elements["options-menu"].open = false;
+    }
+  }
+
+  function renderImpactTable(impacts) {
+    return `<div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Symbol</th>
+            <th>Type</th>
+            <th>Relationship</th>
+            <th>Direction</th>
+            <th>Strength</th>
+            <th>Relevance</th>
+            <th>Confidence</th>
+          </tr>
+        </thead>
+        <tbody>${window.NewsRenderers.renderCompactImpacts(impacts || [])}</tbody>
+      </table>
+    </div>`;
   }
 })();

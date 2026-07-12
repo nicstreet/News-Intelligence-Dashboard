@@ -13,18 +13,24 @@
         <p>Raw news -> structured event -> instrument signal</p>
       </div>
       <div class="status-strip">
-        <button id="open-sources" type="button">Sources</button>
-        <span id="api-status" class="status-pill">API: UNKNOWN</span>
-        <span id="mode-status" class="status-pill muted">MODE: LIVE</span>
+        <details class="options-menu" id="options-menu">
+          <summary>Options</summary>
+          <div class="options-menu-panel">
+            <button id="options-sources" type="button">Sources</button>
+            <button id="options-developer" type="button">Developer</button>
+            <button id="options-refresh-dashboard" type="button">Refresh Dashboard</button>
+          </div>
+        </details>
+        <span id="api-status" class="status-pill">Backend: CHECKING</span>
+        <span id="mode-status" class="status-pill muted">Runtime: LIVE BACKEND</span>
       </div>
     </header>
 
     <div class="app-shell">
       <aside class="sidebar" aria-label="Dashboard views">
         <nav class="side-nav">
-          <button class="side-nav-button active" data-view="overview" type="button">Overview</button>
-          <button class="side-nav-button" data-view="sources" type="button">Sources</button>
-          <button class="side-nav-button" data-view="events" type="button">Events</button>
+          <button class="side-nav-button active" data-view="events" type="button">Events</button>
+          <button class="side-nav-button" data-view="overview" type="button">Overview</button>
           <button class="side-nav-button" data-view="signals" type="button">Signals</button>
           <button class="side-nav-button" data-view="universe" type="button">Favourites</button>
           <button class="side-nav-button" data-view="calibration" type="button">Calibration</button>
@@ -113,7 +119,7 @@
         <div id="pipeline" class="pipeline"></div>
       </section>
 
-      <section class="panel recent-panel view-section" data-views="overview events" aria-labelledby="recent-events-heading">
+      <section class="panel recent-panel view-section" data-views="overview" aria-labelledby="recent-events-heading">
         <div class="section-heading">
           <h2 id="recent-events-heading">Recent Events</h2>
           <button id="refresh-recent" type="button">Refresh</button>
@@ -137,7 +143,62 @@
         </div>
       </section>
 
-      <section class="panel impacts-panel view-section" data-views="events signals" aria-labelledby="instrument-impacts-heading">
+      <section class="panel events-workspace-panel view-section" data-views="events" aria-labelledby="events-workspace-heading">
+        <div class="section-heading">
+          <h2 id="events-workspace-heading">Events</h2>
+          <button id="refresh-event-list" type="button">Refresh</button>
+        </div>
+        <div class="events-workspace">
+          <div class="events-list">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Processed</th>
+                    <th>Type</th>
+                    <th>Symbol</th>
+                    <th>Headline</th>
+                    <th>Direction</th>
+                    <th>Impact</th>
+                    <th>Confidence</th>
+                    <th>Source</th>
+                  </tr>
+                </thead>
+                <tbody id="event-list"></tbody>
+              </table>
+            </div>
+          </div>
+          <aside class="event-detail-panel" aria-labelledby="event-detail-heading">
+            <div class="section-heading">
+              <h3 id="event-detail-heading">Event Detail</h3>
+              <span id="event-detail-meta" class="meta-text">Select an event</span>
+            </div>
+            <div id="event-detail-summary" class="metric-grid"></div>
+            <section class="event-detail-section">
+              <h4>Signal</h4>
+              <div id="event-detail-signal"></div>
+            </section>
+            <section class="event-detail-section">
+              <h4>Instrument Impacts</h4>
+              <div id="event-detail-impacts"></div>
+            </section>
+            <section class="event-detail-section">
+              <h4>Evidence</h4>
+              <div id="event-detail-evidence"></div>
+            </section>
+            <section class="event-detail-section">
+              <h4>Cluster</h4>
+              <div id="event-detail-cluster"></div>
+            </section>
+            <section class="event-detail-section">
+              <h4>JSON</h4>
+              <pre id="event-detail-json"></pre>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section class="panel impacts-panel view-section" data-views="signals" aria-labelledby="instrument-impacts-heading">
         <div class="section-heading">
           <h2 id="instrument-impacts-heading">Instrument Impacts</h2>
           <label class="inline-control">
@@ -227,7 +288,7 @@
         <pre id="file-drop-result"></pre>
       </section>
 
-      <section class="panel detail-panel view-section" data-views="events signals sources json developer" aria-labelledby="detail-tabs-heading">
+      <section class="panel detail-panel view-section" data-views="signals sources json developer" aria-labelledby="detail-tabs-heading">
         <div class="tabs" role="tablist" aria-labelledby="detail-tabs-heading">
           <h2 id="detail-tabs-heading" class="visually-hidden">Detail panels</h2>
           <button class="tab active" data-panel="signal" type="button">Signal</button>

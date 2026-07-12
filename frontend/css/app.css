@@ -85,6 +85,10 @@ table {
   border-collapse: collapse;
 }
 
+a {
+  color: var(--accent);
+}
+
 th,
 td {
   padding: 9px 10px;
@@ -129,6 +133,49 @@ pre {
 .topbar p {
   margin: 2px 0 0;
   color: var(--muted);
+}
+
+.options-menu {
+  position: relative;
+}
+
+.options-menu summary {
+  min-height: 34px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #0d141c;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.options-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.options-menu[open] summary,
+.options-menu summary:hover {
+  border-color: var(--accent);
+}
+
+.options-menu-panel {
+  position: absolute;
+  right: 0;
+  z-index: 10;
+  display: grid;
+  gap: 8px;
+  width: 190px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0c1219;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 0.35);
+}
+
+.options-menu-panel button {
+  text-align: left;
 }
 
 .app-shell {
@@ -227,7 +274,8 @@ pre {
 .automation-panel,
 .universe-panel,
 .calibration-panel,
-.file-drop-panel {
+.file-drop-panel,
+.events-workspace-panel {
   padding: 14px;
 }
 
@@ -237,6 +285,49 @@ pre {
 
 .detail-panel {
   grid-column: 1 / -1;
+}
+
+.events-workspace-panel {
+  grid-column: 1 / -1;
+}
+
+.events-workspace {
+  display: grid;
+  grid-template-columns: minmax(480px, 1.15fr) minmax(360px, 0.85fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.events-list,
+.event-detail-panel {
+  min-width: 0;
+}
+
+.event-detail-panel {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100vh - 118px);
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0e151d;
+}
+
+.event-detail-section {
+  margin-top: 14px;
+}
+
+.event-detail-section h4 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+#event-list tr.active-row,
+#recent-events tr.active-row {
+  background: #14273a;
 }
 
 .section-heading {
@@ -365,6 +456,7 @@ label {
 }
 
 #recent-events tr,
+#event-list tr,
 #pipeline .stage {
   cursor: pointer;
 }
@@ -479,6 +571,15 @@ label {
 
   .sidebar-actions {
     grid-template-columns: repeat(3, minmax(120px, 1fr));
+  }
+
+  .events-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .event-detail-panel {
+    position: static;
+    max-height: none;
   }
 
   .layout {

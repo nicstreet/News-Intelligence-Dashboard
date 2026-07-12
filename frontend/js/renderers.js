@@ -85,6 +85,21 @@
     return Number(right[sortKey] || 0) - Number(left[sortKey] || 0);
   }
 
+  function renderCompactImpacts(impacts) {
+    if (!impacts || impacts.length === 0) {
+      return `<tr><td colspan="7">No instrument impacts available.</td></tr>`;
+    }
+    return impacts.map((impact) => `<tr>
+      <td>${escapeHtml(impact.symbol)}</td>
+      <td>${escapeHtml(impact.entity_type)}</td>
+      <td>${escapeHtml(impact.relationship)}</td>
+      <td class="direction-${upper(impact.direction)}">${upper(impact.direction)}</td>
+      <td>${number(impact.directional_strength, 2)}</td>
+      <td>${number(impact.relevance, 2)}</td>
+      <td>${number(impact.confidence, 2)}</td>
+    </tr>`).join("");
+  }
+
   function renderSignal(signal) {
     if (!signal) {
       return `<div class="metric"><span>Status</span><strong>No signal generated.</strong></div>`;
@@ -231,20 +246,48 @@
     </tr>`).join("");
   }
 
-  function renderRecent(events) {
+  function renderRecent(events, selectedEventId) {
     if (!events || events.length === 0) {
       return `<tr><td colspan="8">No recent events available.</td></tr>`;
     }
-    return events.map((event) => `<tr data-event-id="${escapeHtml(event.event_id)}">
+    return events.map((event) => `<tr data-event-id="${escapeHtml(event.event_id)}" class="${event.event_id === selectedEventId ? "active-row" : ""}">
       <td>${escapeHtml(event.timestamps ? event.timestamps.processed_at : "n/a")}</td>
       <td>${upper(event.event_type)}</td>
       <td>${escapeHtml(event.primary_symbol || "n/a")}</td>
       <td>${escapeHtml(event.headline)}</td>
       <td class="direction-${upper(event.analysis ? event.analysis.direction : "neutral")}">${upper(event.analysis ? event.analysis.direction : "neutral")}</td>
       <td>${number(event.analysis ? event.analysis.confidence : null, 2)}</td>
-      <td>${escapeHtml(event.source ? event.source.source_name : "n/a")}</td>
+      <td>${sourceLink(event)}</td>
       <td>${escapeHtml(event.cluster_id || "n/a")}</td>
     </tr>`).join("");
+  }
+
+  function renderEventRows(events, selectedEventId) {
+    if (!events || events.length === 0) {
+      return `<tr><td colspan="8">No recent events available.</td></tr>`;
+    }
+    return events.map((event) => {
+      const analysis = event.analysis || {};
+      return `<tr data-event-id="${escapeHtml(event.event_id)}" class="${event.event_id === selectedEventId ? "active-row" : ""}">
+        <td>${escapeHtml(event.timestamps ? event.timestamps.processed_at : "n/a")}</td>
+        <td>${upper(event.event_type)}</td>
+        <td>${escapeHtml(event.primary_symbol || "n/a")}</td>
+        <td>${escapeHtml(event.headline)}</td>
+        <td class="direction-${upper(analysis.direction || "neutral")}">${upper(analysis.direction || "neutral")}</td>
+        <td>${number(analysis.directional_strength, 2)}</td>
+        <td>${number(analysis.confidence, 2)}</td>
+        <td>${sourceLink(event)}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  function sourceLink(event) {
+    const source = event && event.source ? event.source : {};
+    const sourceName = source.source_name || "n/a";
+    if (!source.source_url) {
+      return escapeHtml(sourceName);
+    }
+    return `<a href="${escapeHtml(source.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(sourceName)}</a>`;
   }
 
   function renderTestRuns(testRuns) {
@@ -399,12 +442,14 @@
     renderEventSummary,
     renderPipeline,
     renderImpacts,
+    renderCompactImpacts,
     renderSignal,
     renderEvidence,
     renderCluster,
     renderSources,
     renderSourceFilings,
     renderRecent,
+    renderEventRows,
     renderTestRuns,
     renderAutomation,
     renderUniverseSummary,
