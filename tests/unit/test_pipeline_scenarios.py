@@ -260,6 +260,7 @@ def test_dashboard_exposes_update_counts_and_versions() -> None:
     assert "signal_snapshots" in app
     assert "delete-current-test-run" in app
     assert "renderTestRuns" in renderers
+    assert "open-sources" in app
     assert "poll-sec-edgar" in app
     assert "renderSourceFilings" in renderers
 

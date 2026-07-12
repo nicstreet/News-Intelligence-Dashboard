@@ -40,7 +40,7 @@
       "country", "market", "clear-form", "event-summary", "pipeline", "impact-sort",
       "impact-table", "request-id", "panel-signal", "panel-evidence", "panel-cluster",
       "panel-json", "panel-sources", "panel-developer", "json-selector", "json-viewer",
-      "copy-json", "download-json", "recent-events", "refresh-recent", "source-status",
+      "open-sources", "copy-json", "download-json", "recent-events", "refresh-recent", "source-status",
       "source-filings", "poll-sec-edgar", "refresh-source-filings", "error-panel",
       "health-check", "clear-state", "reload-fixtures", "simulate-failure", "raw-request",
       "raw-response", "copy-event-id", "copy-cluster-id", "start-test-run",
@@ -81,6 +81,7 @@
     });
     elements["copy-json"].addEventListener("click", () => copyText(elements["json-viewer"].textContent || ""));
     elements["download-json"].addEventListener("click", downloadJson);
+    elements["open-sources"].addEventListener("click", () => activatePanel("sources"));
     elements["refresh-recent"].addEventListener("click", refreshRecent);
     elements["poll-sec-edgar"].addEventListener("click", pollSecEdgar);
     elements["refresh-source-filings"].addEventListener("click", refreshSourceFilings);
@@ -584,7 +585,7 @@
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `${state.selectedJson || "news-intelligence"}.json`;
+    anchor.download = `${state.selectedJson || "asterius-news-intelligence"}.json`;
     anchor.click();
     URL.revokeObjectURL(url);
   }

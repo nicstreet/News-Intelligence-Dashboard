@@ -1,4 +1,4 @@
-# News Intelligence
+# Asterius News Intelligence
 
 Deterministic financial-news intelligence module for turning raw market news into structured events, duplicate-aware event clusters, instrument impacts, and versioned trading-signal snapshots.
 
@@ -249,7 +249,7 @@ The connector currently polls 8-K filings only. It captures CIK, accession numbe
 SEC requests use an identifying User-Agent from config:
 
 ```yaml
-user_agent: News Intelligence Dashboard street.nic@gmail.com
+user_agent: Asterius News Intelligence street.nic@gmail.com
 ```
 
 Override it without editing config:

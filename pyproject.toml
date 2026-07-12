@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "news-intelligence"
 version = "0.1.0"
-description = "Deterministic financial news intelligence module for tactical trading research."
+description = "Asterius News Intelligence: deterministic financial news intelligence for tactical trading research."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

@@ -61,7 +61,7 @@ class NewsIntelligenceConfig:
         return str(
             self.sec_edgar.get(
                 "user_agent",
-                "News Intelligence Dashboard contact@example.com",
+                "Asterius News Intelligence contact@example.com",
             )
         )
 

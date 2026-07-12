@@ -4,7 +4,7 @@ source_name: SEC EDGAR
 source_type: regulatory
 country_or_region: US
 connector_type: sec_edgar
-user_agent: News Intelligence Dashboard street.nic@gmail.com
+user_agent: Asterius News Intelligence street.nic@gmail.com
 base_url: https://data.sec.gov
 archives_base_url: https://www.sec.gov/Archives/edgar/data
 poll_interval_seconds: 300

@@ -91,5 +91,5 @@ python -m pytest tests/unit/test_sec_edgar_source.py
 Opt-in live SEC coverage:
 
 ```bash
-NEWS_INTELLIGENCE_LIVE_SEC=1 SEC_EDGAR_USER_AGENT="Your App Name email@example.com" python -m pytest tests/integration/test_sec_edgar_live.py
+NEWS_INTELLIGENCE_LIVE_SEC=1 SEC_EDGAR_USER_AGENT="Asterius News Intelligence email@example.com" python -m pytest tests/integration/test_sec_edgar_live.py
 ```
