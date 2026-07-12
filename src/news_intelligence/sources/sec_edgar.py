@@ -140,10 +140,14 @@ class SecEdgarConnector:
         items = self._column(recent, "items")
 
         filings: list[SourceIngestedFiling] = []
+        considered_filings = 0
         for index, accession_number in enumerate(accession_numbers):
             form_type = self._value_at(forms, index).upper()
             if form_type not in self.forms:
                 continue
+            considered_filings += 1
+            if considered_filings > self.max_filings_per_company:
+                break
             source_record_id = self._source_record_id(accession_number)
             if source_record_id in known_source_record_ids:
                 continue
@@ -177,8 +181,6 @@ class SecEdgarConnector:
                     metadata={"document_text": document_text},
                 )
             )
-            if len(filings) >= self.max_filings_per_company:
-                break
         return filings
 
     def _document_text(self, url: str) -> str:

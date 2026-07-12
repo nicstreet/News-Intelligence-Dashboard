@@ -260,6 +260,8 @@ SEC_EDGAR_USER_AGENT="Your App Name your.email@example.com"
 
 The connector rate-limits requests below SEC's published max request rate, retries transient failures, and skips filings whose accession number has already been stored.
 
+Dashboard polling inspects the newest configured 8-K window for each company. It does not keep walking backward to backfill older filings after the newest records are already known.
+
 ## Tests And Validation
 
 Run the full test suite:

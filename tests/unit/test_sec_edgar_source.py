@@ -72,12 +72,37 @@ def test_sec_edgar_ingestion_stores_once_and_runs_pipeline(isolated_database: Pa
     assert any(signal["instrument"]["symbol"] == "NVDA" for signal in signals)
 
 
-def _sec_config() -> NewsIntelligenceConfig:
+def test_sec_edgar_repeat_poll_does_not_backfill_older_8ks(isolated_database: Path) -> None:
+    pipeline = NewsIntelligencePipeline(
+        config=_sec_config(max_filings_per_company=1),
+        repositories=RepositoryBundle(isolated_database),
+        clock=lambda: FIXED_NOW,
+    )
+    service = SourceIngestionService(pipeline)
+    connector = SecEdgarConnector(
+        pipeline.config,
+        fetcher=_fake_sec_fetcher,
+        clock=lambda: FIXED_NOW,
+    )
+
+    first = service.ingest(connector, force=True)
+    second = service.ingest(connector, force=True)
+
+    assert first.ingested_count == 1
+    assert second.fetched_count == 0
+    assert second.ingested_count == 0
+    assert {
+        filing["accession_number"]
+        for filing in pipeline.repositories.source_filings.list_all()
+    } == {"0001045810-26-000123"}
+
+
+def _sec_config(*, max_filings_per_company: int = 1) -> NewsIntelligenceConfig:
     base = load_config()
     sec_edgar = {
         **base.sec_edgar,
         "enabled": True,
-        "max_filings_per_company": 5,
+        "max_filings_per_company": max_filings_per_company,
         "companies": [
             {
                 "symbol": "NVDA",
@@ -120,12 +145,24 @@ def _submission_fixture() -> dict[str, Any]:
         "name": "NVIDIA CORP",
         "filings": {
             "recent": {
-                "accessionNumber": ["0001045810-26-000123", "0001045810-26-000100"],
-                "form": ["8-K", "10-Q"],
-                "acceptanceDateTime": ["2026-06-30T16:30:35.000Z", "2026-06-01T16:30:35.000Z"],
-                "filingDate": ["2026-06-30", "2026-06-01"],
-                "primaryDocument": ["nvda-20260630x8k.htm", "nvda-20260601x10q.htm"],
-                "items": ["2.02,9.01", ""],
+                "accessionNumber": [
+                    "0001045810-26-000123",
+                    "0001045810-26-000100",
+                    "0001045810-26-000099",
+                ],
+                "form": ["8-K", "10-Q", "8-K"],
+                "acceptanceDateTime": [
+                    "2026-06-30T16:30:35.000Z",
+                    "2026-06-01T16:30:35.000Z",
+                    "2026-05-30T16:30:35.000Z",
+                ],
+                "filingDate": ["2026-06-30", "2026-06-01", "2026-05-30"],
+                "primaryDocument": [
+                    "nvda-20260630x8k.htm",
+                    "nvda-20260601x10q.htm",
+                    "nvda-20260530x8k.htm",
+                ],
+                "items": ["2.02,9.01", "", "8.01"],
             }
         },
     }

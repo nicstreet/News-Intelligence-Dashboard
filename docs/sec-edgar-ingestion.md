@@ -53,6 +53,8 @@ sec_edgar:{accession_number}
 
 Before a filing is converted into `RawNewsItem`, the ingestion service checks `source_filings`. If the accession has already been stored, the filing is skipped and the pipeline is not re-run.
 
+The dashboard poll is intentionally latest-window only. For each configured company, the connector considers the newest configured number of matching 8-K filings. Known accessions in that window are skipped, but the connector does not keep walking backward to fill the quota with older filings. This prevents repeated manual polls from gradually backfilling historical 8-K batches.
+
 ## Pipeline Flow
 
 ```text
