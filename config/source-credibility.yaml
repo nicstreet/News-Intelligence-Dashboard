@@ -1,0 +1,45 @@
+version: sources-1.0.0
+default_credibility: 0.5
+sources:
+  Example Newswire:
+    source_type: newswire
+    credibility: 0.86
+    country_or_region: US
+    connector_type: fixture
+    enabled: true
+    status: OK
+  Company Press Release:
+    source_type: company
+    credibility: 0.92
+    country_or_region: US
+    connector_type: fixture
+    enabled: true
+    status: OK
+  Central Bank Feed:
+    source_type: central_bank
+    credibility: 0.95
+    country_or_region: US
+    connector_type: fixture
+    enabled: true
+    status: OK
+  Regulatory Feed:
+    source_type: regulatory
+    credibility: 0.9
+    country_or_region: US
+    connector_type: fixture
+    enabled: true
+    status: OK
+  Market Blog:
+    source_type: blog
+    credibility: 0.45
+    country_or_region: US
+    connector_type: fixture
+    enabled: true
+    status: DEGRADED
+  Social Desk:
+    source_type: social
+    credibility: 0.3
+    country_or_region: US
+    connector_type: fixture
+    enabled: false
+    status: DISABLED

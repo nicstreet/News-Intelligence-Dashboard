@@ -1,0 +1,235 @@
+version: rules-1.0.0
+rules:
+  - id: earnings_beat_raise
+    priority: 120
+    event_group: earnings
+    event_type: earnings
+    event_subtype: beat_and_raise
+    event_status: confirmed
+    match:
+      all: ["earnings"]
+      any: ["raises guidance", "raised guidance", "lifts guidance", "beat and raise", "above expectations"]
+    direction: bullish
+    directional_strength: 0.82
+    confidence: 0.88
+    quality: 0.91
+    surprise: 0.75
+    novelty: 0.9
+    expected_persistence: multi_day
+    roles: [CATALYST, CONFIRMATION]
+  - id: earnings_beat_guidance_reduced
+    priority: 125
+    event_group: earnings
+    event_type: earnings
+    event_subtype: beat_but_guidance_reduced
+    event_status: confirmed
+    match:
+      all: ["earnings"]
+      any: ["cuts guidance", "cut guidance", "reduces guidance", "reduced guidance", "guidance reduced"]
+    direction: mixed
+    directional_strength: -0.28
+    confidence: 0.78
+    quality: 0.84
+    surprise: 0.55
+    novelty: 0.74
+    expected_persistence: multi_day
+    roles: [RISK_OVERLAY, CONFIRMATION]
+  - id: product_anticipated
+    priority: 92
+    event_group: product
+    event_type: product_technology
+    event_subtype: anticipated_product_announcement
+    event_status: confirmed
+    match:
+      any: ["product", "launch", "unveils", "announces"]
+      all: ["anticipated"]
+    direction: neutral
+    directional_strength: 0.08
+    confidence: 0.68
+    quality: 0.76
+    surprise: 0.12
+    novelty: 0.28
+    expected_persistence: intraday
+    roles: [CONFIRMATION]
+  - id: profit_warning
+    priority: 130
+    event_group: profit_warning
+    event_type: profit_warning
+    event_subtype: company_specific_warning
+    event_status: confirmed
+    match:
+      any: ["profit warning", "warns on profit", "warns profits", "cuts outlook"]
+    direction: bearish
+    directional_strength: -0.86
+    confidence: 0.88
+    quality: 0.89
+    surprise: 0.8
+    novelty: 0.86
+    expected_persistence: multi_day
+    roles: [CATALYST, VETO, EXIT_TRIGGER]
+  - id: unexpected_rate_cut
+    priority: 128
+    event_group: central_bank_rate
+    event_type: central_bank
+    event_subtype: unexpected_rate_cut
+    event_status: confirmed
+    match:
+      all: ["rate cut"]
+      any: ["unexpected", "surprise", "unscheduled"]
+    direction: mixed
+    directional_strength: 0.35
+    confidence: 0.86
+    quality: 0.88
+    surprise: 0.82
+    novelty: 0.76
+    expected_persistence: intraday
+    roles: [CATALYST, RISK_OVERLAY]
+    additional_entities:
+      - {entity_type: instrument, symbol: JPM, relationship: sector_exposure, scope: sector, relevance: 0.65, multiplier: 1.0}
+      - {entity_type: etf, symbol: XLF, relationship: sector_exposure, scope: sector, relevance: 0.75, multiplier: 1.0}
+      - {entity_type: etf, symbol: QQQ, relationship: index_constituent, scope: global_market, relevance: 0.65, multiplier: 1.0}
+      - {entity_type: etf, symbol: SPY, relationship: index_constituent, scope: global_market, relevance: 0.52, multiplier: 1.0}
+    impact_overrides:
+      JPM: {direction: bearish, directional_strength: -0.24, relevance: 0.65, confidence: 0.72, reason: "Unexpected cuts can pressure bank net interest margins."}
+      XLF: {direction: mixed, directional_strength: -0.12, relevance: 0.75, confidence: 0.68, reason: "Lower rates help risk appetite but can weigh on financial margins."}
+      QQQ: {direction: bullish, directional_strength: 0.42, relevance: 0.65, confidence: 0.78, reason: "Lower discount rates can support long-duration growth equities."}
+      SPY: {direction: bullish, directional_strength: 0.22, relevance: 0.52, confidence: 0.7, reason: "Broad risk appetite may improve after an unexpected policy easing."}
+  - id: regulatory_restricted_approval
+    priority: 118
+    event_group: regulatory
+    event_type: regulatory_legal
+    event_subtype: restricted_approval
+    event_status: confirmed
+    match:
+      all: ["approval"]
+      any: ["restriction", "restricted", "label warning", "conditions"]
+    direction: mixed
+    directional_strength: 0.22
+    confidence: 0.78
+    quality: 0.84
+    surprise: 0.46
+    novelty: 0.66
+    expected_persistence: multi_day
+    roles: [CATALYST, RISK_OVERLAY]
+  - id: safety_investigation
+    priority: 116
+    event_group: regulatory
+    event_type: regulatory_legal
+    event_subtype: safety_investigation
+    event_status: confirmed
+    match:
+      any: ["safety investigation", "investigation", "safety probe", "regulator probes"]
+    direction: bearish
+    directional_strength: -0.72
+    confidence: 0.82
+    quality: 0.84
+    surprise: 0.62
+    novelty: 0.72
+    expected_persistence: multi_day
+    roles: [RISK_OVERLAY, VETO]
+  - id: commodity_supply_disruption
+    priority: 118
+    event_group: commodity_supply
+    event_type: commodity_supply
+    event_subtype: producer_supply_disruption
+    event_status: confirmed
+    match:
+      all: ["disruption"]
+      any: ["mine", "supply", "uranium"]
+    direction: mixed
+    directional_strength: 0.3
+    confidence: 0.78
+    quality: 0.82
+    surprise: 0.68
+    novelty: 0.72
+    expected_persistence: multi_day
+    roles: [CATALYST, RISK_OVERLAY]
+    impact_overrides:
+      CCJ: {direction: bearish, directional_strength: -0.58, relevance: 1.0, confidence: 0.76, reason: "The producer faces lower output from the disrupted mine."}
+      URA: {direction: bullish, directional_strength: 0.34, relevance: 0.55, confidence: 0.68, reason: "A uranium supply disruption may support peer producers and uranium exposure."}
+      SPY: {direction: neutral, directional_strength: 0.02, relevance: 0.05, confidence: 0.42, reason: "The event is too narrow to materially move the broad index."}
+  - id: takeover_rumour
+    priority: 122
+    event_group: merger_acquisition
+    event_type: rumour_unconfirmed
+    event_subtype: takeover_rumour
+    event_status: unconfirmed
+    match:
+      any: ["takeover rumour", "takeover rumor", "takeover report", "takeover approach", "rumoured bid", "rumored bid", "approach from"]
+    direction: bullish
+    directional_strength: 0.46
+    confidence: 0.32
+    quality: 0.44
+    surprise: 0.64
+    novelty: 0.58
+    expected_persistence: intraday
+    roles: [RISK_OVERLAY, CONFIRMATION]
+    can_directly_trigger: false
+  - id: acquisition_confirmed
+    priority: 126
+    event_group: merger_acquisition
+    event_type: merger_acquisition
+    event_subtype: acquisition_confirmed
+    event_status: confirmed
+    match:
+      all: ["confirms"]
+      any: ["acquisition", "takeover", "buyout", "bid"]
+    direction: bullish
+    directional_strength: 0.64
+    confidence: 0.82
+    quality: 0.86
+    surprise: 0.58
+    novelty: 0.64
+    expected_persistence: multi_day
+    roles: [CATALYST, CONFIRMATION]
+  - id: company_denial
+    priority: 132
+    event_group: merger_acquisition
+    event_type: rumour_unconfirmed
+    event_subtype: company_denial
+    event_status: denied
+    match:
+      any: ["denies report", "denies takeover", "denies talks", "no discussions"]
+    direction: neutral
+    directional_strength: -0.08
+    confidence: 0.78
+    quality: 0.82
+    surprise: 0.66
+    novelty: 0.7
+    expected_persistence: intraday
+    roles: [RISK_OVERLAY, VETO]
+    contradictions_detected: true
+  - id: positive_rejected_price_action
+    priority: 121
+    event_group: market_reaction
+    event_type: market_structure
+    event_subtype: positive_news_rejected_by_price
+    event_status: confirmed
+    match:
+      all: ["despite"]
+      any: ["shares fall", "stock falls", "market rejects", "price action rejected"]
+    direction: bearish
+    directional_strength: -0.32
+    confidence: 0.62
+    quality: 0.66
+    surprise: 0.5
+    novelty: 0.52
+    expected_persistence: intraday
+    roles: [RISK_OVERLAY, VETO]
+    contradictions_detected: true
+  - id: unknown
+    priority: 0
+    event_group: unknown
+    event_type: unknown
+    event_subtype: unknown
+    event_status: confirmed
+    match:
+      any: []
+    direction: neutral
+    directional_strength: 0.0
+    confidence: 0.2
+    quality: 0.35
+    surprise: 0.0
+    novelty: 0.0
+    expected_persistence: intraday
+    roles: [RISK_OVERLAY]

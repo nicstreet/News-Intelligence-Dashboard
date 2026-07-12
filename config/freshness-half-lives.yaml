@@ -1,0 +1,23 @@
+version: freshness-1.0.0
+default_half_life_hours: 24
+event_type_half_life_hours:
+  earnings: 48
+  guidance: 72
+  profit_warning: 96
+  corporate_action: 72
+  merger_acquisition: 72
+  contract_commercial: 36
+  product_technology: 24
+  management_governance: 36
+  regulatory_legal: 72
+  analyst_market_view: 18
+  macro_economic: 24
+  central_bank: 24
+  geopolitical: 24
+  commodity_supply: 72
+  sector_industry: 36
+  market_structure: 24
+  etf_fund: 24
+  scheduled_event: 12
+  rumour_unconfirmed: 8
+  unknown: 12

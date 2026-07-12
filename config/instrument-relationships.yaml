@@ -1,0 +1,73 @@
+version: resolver-1.0.0
+instruments:
+  NVDA:
+    name: NVIDIA
+    exchange: NASDAQ
+    aliases: ["NVIDIA", "Nvidia"]
+    relationships:
+      - {symbol: NVDA, entity_type: instrument, relationship: direct, scope: instrument, relevance: 1.0, multiplier: 1.0}
+      - {symbol: SMH, entity_type: etf, relationship: industry_exposure, scope: industry, relevance: 0.55, multiplier: 0.5}
+      - {symbol: XLK, entity_type: etf, relationship: sector_exposure, scope: sector, relevance: 0.3, multiplier: 0.35}
+      - {symbol: QQQ, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.2, multiplier: 0.25}
+      - {symbol: SPY, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.08, multiplier: 0.1}
+  AMD:
+    name: Advanced Micro Devices
+    exchange: NASDAQ
+    aliases: ["AMD", "Advanced Micro Devices"]
+    relationships:
+      - {symbol: AMD, entity_type: instrument, relationship: direct, scope: instrument, relevance: 1.0, multiplier: 1.0}
+      - {symbol: SMH, entity_type: etf, relationship: industry_exposure, scope: industry, relevance: 0.5, multiplier: 0.48}
+      - {symbol: XLK, entity_type: etf, relationship: sector_exposure, scope: sector, relevance: 0.28, multiplier: 0.33}
+      - {symbol: QQQ, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.18, multiplier: 0.22}
+      - {symbol: SPY, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.07, multiplier: 0.09}
+  AAPL:
+    name: Apple
+    exchange: NASDAQ
+    aliases: ["Apple", "AAPL"]
+    relationships:
+      - {symbol: AAPL, entity_type: instrument, relationship: direct, scope: instrument, relevance: 1.0, multiplier: 1.0}
+      - {symbol: XLK, entity_type: etf, relationship: sector_exposure, scope: sector, relevance: 0.45, multiplier: 0.45}
+      - {symbol: QQQ, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.32, multiplier: 0.32}
+      - {symbol: SPY, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.18, multiplier: 0.18}
+  XOM:
+    name: Exxon Mobil
+    exchange: NYSE
+    aliases: ["Exxon", "Exxon Mobil", "XOM"]
+    relationships:
+      - {symbol: XOM, entity_type: instrument, relationship: direct, scope: instrument, relevance: 1.0, multiplier: 1.0}
+      - {symbol: XLE, entity_type: etf, relationship: sector_exposure, scope: sector, relevance: 0.42, multiplier: 0.4}
+      - {symbol: SPY, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.12, multiplier: 0.12}
+  JPM:
+    name: JPMorgan Chase
+    exchange: NYSE
+    aliases: ["JPMorgan", "JPMorgan Chase", "JPM"]
+    relationships:
+      - {symbol: JPM, entity_type: instrument, relationship: direct, scope: instrument, relevance: 1.0, multiplier: 1.0}
+      - {symbol: XLF, entity_type: etf, relationship: sector_exposure, scope: sector, relevance: 0.5, multiplier: 0.5}
+      - {symbol: SPY, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.1, multiplier: 0.1}
+  MRNA:
+    name: Moderna
+    exchange: NASDAQ
+    aliases: ["Moderna", "MRNA"]
+    relationships:
+      - {symbol: MRNA, entity_type: instrument, relationship: direct, scope: instrument, relevance: 1.0, multiplier: 1.0}
+      - {symbol: IBB, entity_type: etf, relationship: industry_exposure, scope: industry, relevance: 0.48, multiplier: 0.8}
+      - {symbol: XLV, entity_type: etf, relationship: sector_exposure, scope: sector, relevance: 0.26, multiplier: 0.25}
+      - {symbol: SPY, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.07, multiplier: 0.08}
+  BA:
+    name: Boeing
+    exchange: NYSE
+    aliases: ["Boeing", "BA"]
+    relationships:
+      - {symbol: BA, entity_type: instrument, relationship: direct, scope: instrument, relevance: 1.0, multiplier: 1.0}
+      - {symbol: ITA, entity_type: etf, relationship: industry_exposure, scope: industry, relevance: 0.5, multiplier: 0.45}
+      - {symbol: XLI, entity_type: etf, relationship: sector_exposure, scope: sector, relevance: 0.3, multiplier: 0.28}
+      - {symbol: SPY, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.1, multiplier: 0.1}
+  CCJ:
+    name: Cameco
+    exchange: NYSE
+    aliases: ["Cameco", "CCJ"]
+    relationships:
+      - {symbol: CCJ, entity_type: instrument, relationship: direct, scope: instrument, relevance: 1.0, multiplier: 1.0}
+      - {symbol: URA, entity_type: etf, relationship: commodity_exposure, scope: commodity, relevance: 0.55, multiplier: 0.45}
+      - {symbol: SPY, entity_type: etf, relationship: index_constituent, scope: global_market, relevance: 0.05, multiplier: 0.05}
