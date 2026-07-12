@@ -9,6 +9,8 @@
     universe: null,
     calibration: null,
     fileDrop: null,
+    storage: null,
+    storageRetention: {},
     currentView: "events",
     selectedStage: 0,
     selectedPanel: "signal",
@@ -38,6 +40,7 @@
     refreshUniverse();
     refreshCalibration();
     refreshFileDrop();
+    refreshStorage();
     refreshRecent();
     refreshTestRuns();
     checkHealth(false);
@@ -45,7 +48,7 @@
 
   function bindElements() {
     [
-      "api-status", "mode-status", "options-menu", "options-sources",
+      "api-status", "mode-status", "options-menu", "options-sources", "options-storage",
       "options-developer", "options-refresh-dashboard", "fixture-selector", "load-fixture", "news-form",
       "toggle-input-mode", "structured-input", "json-input-wrap", "raw-json", "headline",
       "body", "source-name", "source-type", "source-url", "published-at", "known-ticker",
@@ -64,7 +67,8 @@
       "refresh-file-drop", "export-latest-file-drop", "file-drop-status",
       "file-drop-result", "refresh-event-list", "event-list", "event-detail-meta",
       "event-detail-summary", "event-detail-signal", "event-detail-impacts",
-      "event-detail-evidence", "event-detail-cluster", "event-detail-json"
+      "event-detail-evidence", "event-detail-cluster", "event-detail-json",
+      "refresh-storage", "storage-summary", "storage-visualisation", "storage-layers"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
     });
@@ -104,6 +108,10 @@
       activateView("sources");
       closeOptionsMenu();
     });
+    elements["options-storage"].addEventListener("click", () => {
+      activateView("storage");
+      closeOptionsMenu();
+    });
     elements["options-developer"].addEventListener("click", () => {
       activateView("developer");
       closeOptionsMenu();
@@ -123,9 +131,11 @@
     elements["refresh-universe"].addEventListener("click", refreshUniverse);
     elements["refresh-calibration"].addEventListener("click", refreshCalibration);
     elements["refresh-file-drop"].addEventListener("click", refreshFileDrop);
+    elements["refresh-storage"].addEventListener("click", refreshStorage);
     elements["export-latest-file-drop"].addEventListener("click", exportLatestFileDrop);
     elements["recent-events"].addEventListener("click", loadRecentDetail);
     elements["event-list"].addEventListener("click", loadRecentDetail);
+    elements["storage-layers"].addEventListener("input", updateStorageRetention);
     elements["health-check"].addEventListener("click", () => checkHealth(true));
     elements["start-test-run"].addEventListener("click", startNewTestRun);
     elements["delete-current-test-run"].addEventListener("click", deleteCurrentTestRun);
@@ -200,6 +210,7 @@
       await animateStages(result.stages || []);
       renderAll();
       refreshRecent();
+      refreshStorage();
     } catch (error) {
       showError(error);
       setFailedStage(error.stage || "API", error.message);
@@ -281,6 +292,7 @@
     renderUniverse();
     renderCalibration();
     renderFileDrop();
+    renderStorage();
     renderDeveloper();
     renderView();
   }
@@ -376,6 +388,21 @@
 
   function renderFileDrop() {
     elements["file-drop-status"].innerHTML = window.NewsRenderers.renderFileDropStatus(state.fileDrop);
+  }
+
+  function renderStorage() {
+    elements["storage-summary"].innerHTML = window.NewsRenderers.renderStorageSummary(
+      state.storage,
+      state.storageRetention
+    );
+    elements["storage-visualisation"].innerHTML = window.NewsRenderers.renderStorageVisualisation(
+      state.storage,
+      state.storageRetention
+    );
+    elements["storage-layers"].innerHTML = window.NewsRenderers.renderStorageLayers(
+      state.storage,
+      state.storageRetention
+    );
   }
 
   function renderJsonOptions() {
@@ -517,6 +544,20 @@
     }
   }
 
+  async function refreshStorage() {
+    try {
+      state.storage = await window.NewsApi.storageLayers();
+      initialiseStorageRetention();
+      renderStorage();
+    } catch (error) {
+      state.storage = null;
+      if (!window.NewsApi.isMockMode()) {
+        showError(error);
+      }
+      renderStorage();
+    }
+  }
+
   async function pollSecEdgar() {
     hideError();
     setSecPollStatus("SEC: polling...", "processing");
@@ -528,6 +569,7 @@
       await refreshSourceFilings();
       await refreshAutomation();
       await refreshRecent();
+      await refreshStorage();
       setSecPollStatus(`SEC: ${result.ingested_count || 0} new, ${result.skipped_count || 0} skipped`, "");
       renderDeveloper();
     } catch (error) {
@@ -547,6 +589,7 @@
       await refreshSourceFilings();
       await refreshAutomation();
       await refreshRecent();
+      await refreshStorage();
       renderDeveloper();
       activateView("sources");
     } catch (error) {
@@ -563,6 +606,7 @@
       await refreshSourceFilings();
       await refreshAutomation();
       await refreshRecent();
+      await refreshStorage();
       renderDeveloper();
       activateView("sources");
     } catch (error) {
@@ -577,6 +621,7 @@
       state.lastResponse = result;
       elements["file-drop-result"].textContent = JSON.stringify(result, null, 2);
       await refreshFileDrop();
+      await refreshStorage();
       renderDeveloper();
     } catch (error) {
       showError(error);
@@ -706,6 +751,7 @@
       state.lastResponse = result;
       await refreshRecent();
       await refreshTestRuns();
+      await refreshStorage();
       renderAll();
     } catch (error) {
       showError(error);
@@ -725,6 +771,7 @@
       state.lastResponse = result;
       await refreshRecent();
       await refreshTestRuns();
+      await refreshStorage();
       renderAll();
     } catch (error) {
       showError(error);
@@ -782,6 +829,21 @@
     elements["mode-status"].textContent = window.NewsApi.isMockMode()
       ? "Runtime: MOCK DATA"
       : "Runtime: LIVE BACKEND";
+  }
+
+  function initialiseStorageRetention() {
+    const layers = state.storage && state.storage.layers ? state.storage.layers : [];
+    layers.forEach((layer) => {
+      if (!layer.adjustable || state.storageRetention[layer.layer_key]) return;
+      state.storageRetention[layer.layer_key] = Number(layer.retention_days || 365);
+    });
+  }
+
+  function updateStorageRetention(event) {
+    const input = event.target.closest("[data-retention-layer]");
+    if (!input) return;
+    state.storageRetention[input.dataset.retentionLayer] = Number(input.value);
+    renderStorage();
   }
 
   function currentEvent() {
@@ -843,6 +905,7 @@
       refreshUniverse(),
       refreshCalibration(),
       refreshFileDrop(),
+      refreshStorage(),
       refreshRecent(),
       refreshTestRuns(),
       checkHealth(false)

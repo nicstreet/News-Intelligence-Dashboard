@@ -12,6 +12,7 @@ from news_intelligence.pipeline import NewsIntelligencePipeline
 from news_intelligence.sources.service import SourceIngestionService
 from news_intelligence.sources.world_news import WorldNewsConnector
 from news_intelligence.storage import RepositoryBundle
+from news_intelligence.storage.retention import StorageLayerSummaryService
 from news_intelligence.universe import FavouritesUniverseService
 
 FIXED_NOW = datetime(2026, 7, 11, 12, 0, tzinfo=UTC)
@@ -136,6 +137,8 @@ def test_file_drop_exports_atomic_json_payload(
     output_dir = isolated_database.parent / f"file_drop_{isolated_database.stem}"
     settings = dict(pipeline.config.file_drop)
     settings["output_dir"] = str(output_dir)
+    settings["archive_dir"] = str(output_dir / "archive")
+    settings["error_dir"] = str(output_dir / "error")
     config = replace(pipeline.config, file_drop=settings)
 
     exported = FileDropExporter(config, pipeline.repositories).export_signal(signal_id)
@@ -144,3 +147,46 @@ def test_file_drop_exports_atomic_json_payload(
     assert Path(str(exported["path"])).exists()
     assert exported["payload"]["producer"] == "asterius_news_intelligence"
     assert exported["payload"]["signal"]["signal_id"] == signal_id
+
+
+def test_storage_layer_summary_reports_current_usage(isolated_database: Path) -> None:
+    pipeline = NewsIntelligencePipeline(
+        repositories=RepositoryBundle(isolated_database),
+        clock=lambda: FIXED_NOW,
+    )
+    pipeline.analyse(
+        coerce_raw_news_items(
+            {
+                "headline": "NVIDIA reports earnings above expectations and raises guidance",
+                "body": EARNINGS_BODY,
+                "source_name": "Example Newswire",
+                "published_at": "2026-07-11T09:14:00Z",
+                "known_ticker": "NVDA",
+                "source_article_id": "nvda-storage-summary-001",
+            }
+        ),
+        persist=True,
+    )
+    output_dir = isolated_database.parent / f"file_drop_{isolated_database.stem}"
+    settings = dict(pipeline.config.file_drop)
+    settings["output_dir"] = str(output_dir)
+    config = replace(pipeline.config, file_drop=settings)
+
+    summary = StorageLayerSummaryService(config, pipeline.repositories).summary()
+    layers = {str(layer["layer_key"]): layer for layer in summary["layers"]}
+
+    assert {
+        "raw_news",
+        "normalised_news",
+        "events",
+        "event_clusters",
+        "instrument_impacts",
+        "signal_snapshots",
+        "file_drop",
+    } <= set(layers)
+    assert layers["raw_news"]["record_count"] == 1
+    assert layers["raw_news"]["current_bytes"] > 0
+    assert layers["raw_news"]["days_worth"] == 1
+    assert layers["raw_news"]["ticker_count"] == 1
+    assert layers["raw_news"]["adjustable"] is True
+    assert summary["total_current_bytes"] >= layers["raw_news"]["current_bytes"]

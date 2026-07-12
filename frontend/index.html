@@ -17,6 +17,7 @@
           <summary>Options</summary>
           <div class="options-menu-panel">
             <button id="options-sources" type="button">Sources</button>
+            <button id="options-storage" type="button">Storage / Retention</button>
             <button id="options-developer" type="button">Developer</button>
             <button id="options-refresh-dashboard" type="button">Refresh Dashboard</button>
           </div>
@@ -288,6 +289,31 @@
         </div>
         <div id="file-drop-status" class="metric-grid"></div>
         <pre id="file-drop-result"></pre>
+      </section>
+
+      <section class="panel storage-panel view-section view-hidden" data-views="storage" aria-labelledby="storage-heading">
+        <div class="section-heading">
+          <h2 id="storage-heading">Storage / Retention</h2>
+          <button id="refresh-storage" type="button">Refresh</button>
+        </div>
+        <div id="storage-summary" class="metric-grid"></div>
+        <div id="storage-visualisation" class="storage-bars" aria-live="polite"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Layer Name</th>
+                <th>What it is</th>
+                <th>Current Storage</th>
+                <th>Days Worth</th>
+                <th>Tickers</th>
+                <th>Retention</th>
+                <th>Projected Storage</th>
+              </tr>
+            </thead>
+            <tbody id="storage-layers"></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="panel detail-panel view-section" data-views="signals sources json developer" aria-labelledby="detail-tabs-heading">

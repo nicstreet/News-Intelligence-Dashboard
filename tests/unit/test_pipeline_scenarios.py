@@ -267,6 +267,11 @@ def test_dashboard_exposes_update_counts_and_versions() -> None:
     assert "poll-sec-edgar" in app
     assert "sec-edgar-poll-status" in app
     assert "renderSourceFilings" in renderers
+    assert "options-storage" in app
+    assert "storage-layers" in app
+    assert "refreshStorage" in app
+    assert "renderStorageLayers" in renderers
+    assert "data-retention-layer" in renderers
 
 
 def test_takeover_fixture_isolated_across_test_runs(isolated_database: Path) -> None:

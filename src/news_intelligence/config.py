@@ -39,6 +39,7 @@ class NewsIntelligenceConfig:
     world_news: dict[str, Any] = field(default_factory=dict)
     automation: dict[str, Any] = field(default_factory=dict)
     file_drop: dict[str, Any] = field(default_factory=dict)
+    retention: dict[str, Any] = field(default_factory=dict)
 
     @property
     def rules_version(self) -> str:
@@ -164,4 +165,5 @@ def load_config(config_dir: Path | None = None) -> NewsIntelligenceConfig:
         world_news=_load_optional_yaml(directory / "world-news.yaml"),
         automation=_load_optional_yaml(directory / "automation.yaml"),
         file_drop=_load_optional_yaml(directory / "file-drop.yaml"),
+        retention=_load_optional_yaml(directory / "retention.yaml"),
     )

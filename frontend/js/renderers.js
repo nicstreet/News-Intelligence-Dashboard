@@ -15,6 +15,14 @@
     return Number(value).toFixed(digits);
   }
 
+  function formatBytes(value) {
+    const bytes = Number(value || 0);
+    if (bytes < 1024) return `${bytes.toFixed(0)} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    if (bytes < 1024 * 1024 * 1024) return `${(bytes / 1048576).toFixed(2)} MB`;
+    return `${(bytes / 1073741824).toFixed(2)} GB`;
+  }
+
   function upper(value) {
     return String(value || "n/a").replaceAll("_", " ").toUpperCase();
   }
@@ -472,6 +480,109 @@
     ].join("");
   }
 
+  function renderStorageSummary(storage, retention) {
+    if (!storage) {
+      return metric("Status", "No storage summary loaded");
+    }
+    const layers = storage.layers || [];
+    const currentBytes = layers.reduce((total, layer) => total + Number(layer.current_bytes || 0), 0);
+    const projectedBytes = layers.reduce(
+      (total, layer) => total + storageProjectedBytes(layer, retention),
+      0
+    );
+    return [
+      metric("Current JSON payloads", formatBytes(currentBytes)),
+      metric("Projected retention", formatBytes(projectedBytes)),
+      metric("SQLite database file", formatBytes(storage.database_file_bytes || 0)),
+      metric("Storage layers", layers.length),
+      metric("Retention profile", storage.retention_version || "n/a"),
+      metric("Generated", storage.generated_at || "n/a")
+    ].join("");
+  }
+
+  function renderStorageVisualisation(storage, retention) {
+    const layers = storage && storage.layers ? storage.layers : [];
+    if (layers.length === 0) {
+      return `<p>No storage layers available.</p>`;
+    }
+    const maxBytes = Math.max(
+      1,
+      ...layers.flatMap((layer) => [
+        Number(layer.current_bytes || 0),
+        storageProjectedBytes(layer, retention)
+      ])
+    );
+    return layers.map((layer) => {
+      const currentBytes = Number(layer.current_bytes || 0);
+      const projectedBytes = storageProjectedBytes(layer, retention);
+      const currentWidth = Math.max(1, (currentBytes / maxBytes) * 100);
+      const projectedWidth = Math.max(1, (projectedBytes / maxBytes) * 100);
+      return `<div class="storage-bar-row">
+        <div class="storage-bar-label">${escapeHtml(layer.layer_name || layer.layer_key)}</div>
+        <div class="storage-bar-track" aria-label="${escapeHtml(layer.layer_name || layer.layer_key)} projected storage">
+          <span class="storage-bar-fill projected" style="width: ${projectedWidth}%"></span>
+          <span class="storage-bar-fill current" style="width: ${currentWidth}%"></span>
+        </div>
+        <div class="storage-bar-value">${escapeHtml(formatBytes(projectedBytes))}</div>
+      </div>`;
+    }).join("");
+  }
+
+  function renderStorageLayers(storage, retention) {
+    const layers = storage && storage.layers ? storage.layers : [];
+    if (layers.length === 0) {
+      return `<tr><td colspan="7">No storage layers available.</td></tr>`;
+    }
+    return layers.map((layer) => {
+      const projectedBytes = storageProjectedBytes(layer, retention);
+      const retentionCell = layer.adjustable
+        ? retentionSlider(layer, retention)
+        : `<span class="muted-text">Permanent / audit</span>`;
+      return `<tr>
+        <td>${escapeHtml(layer.layer_name || layer.layer_key)}</td>
+        <td>${escapeHtml(layer.description || "")}</td>
+        <td>
+          <strong>${escapeHtml(formatBytes(layer.current_bytes))}</strong>
+          <div class="meta-text">${escapeHtml(layer.record_count || 0)} records</div>
+        </td>
+        <td>${escapeHtml(layer.days_worth || 0)}</td>
+        <td>${escapeHtml(layer.ticker_count || 0)}</td>
+        <td>${retentionCell}</td>
+        <td>
+          <strong>${escapeHtml(formatBytes(projectedBytes))}</strong>
+          <div class="meta-text">${escapeHtml(formatBytes(layer.estimated_bytes_per_day || 0))} / day</div>
+        </td>
+      </tr>`;
+    }).join("");
+  }
+
+  function retentionSlider(layer, retention) {
+    const days = activeRetentionDays(layer, retention);
+    return `<div class="retention-control">
+      <input type="range" min="7" max="3650" step="7" value="${days}" data-retention-layer="${escapeHtml(layer.layer_key)}" aria-label="${escapeHtml(layer.layer_name || layer.layer_key)} retention days">
+      <span>${escapeHtml(days)} days</span>
+    </div>`;
+  }
+
+  function activeRetentionDays(layer, retention) {
+    const configured = retention && Object.hasOwn(retention, layer.layer_key)
+      ? Number(retention[layer.layer_key])
+      : Number(layer.retention_days || 365);
+    if (Number.isNaN(configured) || configured < 7) return 7;
+    return Math.round(configured);
+  }
+
+  function storageProjectedBytes(layer, retention) {
+    if (!layer || !layer.adjustable) {
+      return Number(layer ? layer.current_bytes || 0 : 0);
+    }
+    const perDay = Number(layer.estimated_bytes_per_day || 0);
+    if (perDay <= 0) {
+      return Number(layer.current_bytes || 0);
+    }
+    return Math.round(perDay * activeRetentionDays(layer, retention));
+  }
+
   function renderError(error) {
     const detail = error.detail ? JSON.stringify(error.detail, null, 2) : "";
     return `<strong>${escapeHtml(error.stage || "Error")}: ${escapeHtml(error.message || error.summary || "Request failed")}</strong>
@@ -483,6 +594,7 @@
     escapeHtml,
     metric,
     number,
+    formatBytes,
     upper,
     renderEventSummary,
     renderPipeline,
@@ -502,6 +614,9 @@
     renderCalibrationSummary,
     renderCalibrationReport,
     renderFileDropStatus,
+    renderStorageSummary,
+    renderStorageVisualisation,
+    renderStorageLayers,
     renderError
   };
 })();

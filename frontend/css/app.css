@@ -275,6 +275,7 @@ pre {
 .universe-panel,
 .calibration-panel,
 .file-drop-panel,
+.storage-panel,
 .events-workspace-panel {
   padding: 14px;
 }
@@ -288,6 +289,10 @@ pre {
 }
 
 .events-workspace-panel {
+  grid-column: 1 / -1;
+}
+
+.storage-panel {
   grid-column: 1 / -1;
 }
 
@@ -343,6 +348,10 @@ pre {
 .meta-text {
   color: var(--muted);
   font-size: 12px;
+}
+
+.muted-text {
+  color: var(--muted);
 }
 
 .form-grid {
@@ -536,6 +545,73 @@ label {
   gap: 8px;
 }
 
+.storage-bars {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #0e151d;
+}
+
+.storage-bar-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 220px) minmax(180px, 1fr) 110px;
+  gap: 10px;
+  align-items: center;
+}
+
+.storage-bar-label,
+.storage-bar-value {
+  overflow-wrap: anywhere;
+}
+
+.storage-bar-value {
+  color: var(--muted);
+  text-align: right;
+}
+
+.storage-bar-track {
+  position: relative;
+  height: 18px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: #080c11;
+}
+
+.storage-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  height: 100%;
+}
+
+.storage-bar-fill.projected {
+  background: rgb(79 176 255 / 0.35);
+}
+
+.storage-bar-fill.current {
+  height: 8px;
+  margin-top: 4px;
+  background: var(--accent);
+}
+
+.retention-control {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) 82px;
+  gap: 8px;
+  align-items: center;
+  min-width: 230px;
+}
+
+.retention-control input {
+  min-height: 24px;
+  padding: 0;
+}
+
 .hidden {
   display: none !important;
 }
@@ -609,8 +685,13 @@ label {
   .signal-grid,
   .evidence-grid,
   .source-grid,
+  .storage-bar-row,
   .side-nav,
   .sidebar-actions {
     grid-template-columns: 1fr;
+  }
+
+  .storage-bar-value {
+    text-align: left;
   }
 }

@@ -19,6 +19,7 @@ const MOCK_MODE = false;
     calibration: "/calibration/report",
     fileDropStatus: "/outputs/file-drop/status",
     fileDropLatest: "/outputs/file-drop/latest",
+    storageLayers: "/storage/layers",
     testRuns: "/test-runs",
     testRun: (testRunId) => `/test-runs/${encodeURIComponent(testRunId)}`,
     developmentData: "/development-data",
@@ -155,6 +156,22 @@ const MOCK_MODE = false;
     return request(ENDPOINTS.fileDropStatus);
   }
 
+  async function storageLayers() {
+    if (useMockMode()) {
+      return {
+        schema_version: "1.0.0",
+        retention_version: "mock",
+        generated_at: new Date().toISOString(),
+        database_path: "mock",
+        database_file_bytes: 0,
+        total_current_bytes: 0,
+        total_projected_bytes: 0,
+        layers: []
+      };
+    }
+    return request(ENDPOINTS.storageLayers);
+  }
+
   async function exportLatestFileDrop(limit) {
     if (useMockMode()) {
       return [];
@@ -215,6 +232,7 @@ const MOCK_MODE = false;
     favouritesUniverse,
     calibrationReport,
     fileDropStatus,
+    storageLayers,
     exportLatestFileDrop,
     health,
     startTestRun,

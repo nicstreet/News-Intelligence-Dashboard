@@ -1,0 +1,47 @@
+version: retention-1.0.0
+layers:
+  raw_news:
+    label: Raw Source Items
+    description: Original incoming article, filing, release or feed item retained for audit and reprocessing.
+    retention_days: 365
+    adjustable: true
+  normalised_news:
+    label: Normalised News
+    description: Cleaned text, detected symbols, content hash and source-enriched record used by classification and clustering.
+    retention_days: 365
+    adjustable: true
+  events:
+    label: Canonical Events
+    description: Structured record describing what happened, who it affects and the calculated event analysis.
+    retention_days: null
+    adjustable: false
+  event_clusters:
+    label: Event Clusters
+    description: Duplicate/material-update grouping, article audit trail, event versions and signal snapshot history.
+    retention_days: null
+    adjustable: false
+  instrument_impacts:
+    label: Instrument Impacts
+    description: Per-instrument relationship, relevance, direction, strength, confidence and reasoning.
+    retention_days: 1095
+    adjustable: true
+  signal_snapshots:
+    label: Signal Snapshots
+    description: Time-sensitive signal output for an instrument, including score, confidence, freshness, risk and evidence.
+    retention_days: 1095
+    adjustable: true
+  source_filings:
+    label: Source Lineage
+    description: Connector-level filing or source item lineage used to prevent duplicate ingestion and audit source provenance.
+    retention_days: 1095
+    adjustable: false
+  file_drop:
+    label: File-drop JSON
+    description: Exported downstream JSON payloads written for trading-app ingestion.
+    retention_days: 180
+    adjustable: true
+  calibration:
+    label: Calibration Dataset
+    description: Historical event-study outcomes and reliability profiles; retained as versioned research data.
+    retention_days: null
+    adjustable: false

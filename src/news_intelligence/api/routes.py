@@ -14,6 +14,7 @@ from news_intelligence.sources.scheduler import SourceScheduler
 from news_intelligence.sources.sec_edgar import SecEdgarConnector
 from news_intelligence.sources.service import SourceIngestionService
 from news_intelligence.sources.world_news import WorldNewsConnector
+from news_intelligence.storage.retention import StorageLayerSummaryService
 from news_intelligence.universe import FavouritesUniverseService
 
 router = APIRouter()
@@ -203,6 +204,11 @@ async def calibration_report(limit: int = 500) -> dict[str, Any]:
 @router.get("/outputs/file-drop/status")
 async def file_drop_status() -> dict[str, Any]:
     return FileDropExporter(pipeline.config, pipeline.repositories).status()
+
+
+@router.get("/storage/layers")
+async def storage_layers() -> dict[str, Any]:
+    return StorageLayerSummaryService(pipeline.config, pipeline.repositories).summary()
 
 
 @router.post("/outputs/file-drop/signals/{signal_id}")

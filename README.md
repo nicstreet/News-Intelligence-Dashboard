@@ -83,6 +83,8 @@ It is organised as a left-navigation operational console:
 - `JSON / Audit`: raw contract inspection.
 - `Developer`: deterministic fixtures, test-run controls, and reset controls.
 
+The top-right `Options` menu opens less-frequent operational views, including `Sources`, `Developer`, and `Storage / Retention`. The storage view summarises current payload usage by layer, shows the measured days/ticker span, and lets retention sliders model projected storage without deleting records.
+
 For deterministic fixture testing:
 
 1. Open the `Developer` view.
@@ -197,6 +199,7 @@ Implemented endpoints:
 | `GET` | `/outputs/file-drop/status` | Show file-drop output configuration |
 | `POST` | `/outputs/file-drop/signals/{signal_id}` | Export one signal payload to file drop |
 | `POST` | `/outputs/file-drop/latest` | Export recent signal payloads to file drop |
+| `GET` | `/storage/layers` | Summarise storage by layer and retention profile |
 | `GET` | `/schemas` | Export public JSON Schemas |
 | `GET` | `/health` | Health check |
 | `GET` | `/` | Dashboard |
@@ -415,8 +418,12 @@ SQLite is used for the MVP. Repositories store JSON payloads for:
 - event clusters
 - instrument impacts
 - signal snapshots
+- source lineage records
+- file-drop JSON outputs
 
 Generated SQLite databases are ignored by Git. The repository boundary is intentionally simple so SQLite can later be replaced by PostgreSQL without changing the domain contracts.
+
+Storage-retention defaults live in `config/retention.yaml`. `GET /storage/layers` reports logical JSON payload bytes, record count, ticker count, days worth of retained data, estimated bytes per day, and projected storage for adjustable layers. The dashboard sliders are modelling controls only; they do not purge data until an explicit retention-apply workflow is added.
 
 ## Adding An Event Rule
 
