@@ -1,0 +1,26 @@
+version: eodhd-1.0.0
+enabled: false
+source_name: EODHD
+source_type: market_data
+connector_type: eodhd
+base_url: https://eodhd.com/api
+api_token_env: EODHD_API_TOKEN
+api_token_file: config/eodhd.local.yaml
+timeout_seconds: 20
+max_retries: 3
+rate_limit_per_minute: 60
+historical_eod:
+  endpoint: /eod/{symbol}
+  default_period: d
+intraday:
+  endpoint: /intraday/{symbol}
+  default_interval: 5m
+  max_range_days:
+    1m: 120
+    5m: 600
+    1h: 7200
+exchange_suffixes:
+  US: US
+  NASDAQ: US
+  NYSE: US
+  LSE: LSE

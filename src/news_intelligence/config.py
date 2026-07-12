@@ -26,6 +26,24 @@ def _load_optional_yaml(path: Path) -> dict[str, Any]:
     return _load_yaml(path)
 
 
+def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        existing = merged.get(key)
+        if isinstance(existing, dict) and isinstance(value, dict):
+            merged[key] = _deep_merge(existing, value)
+        else:
+            merged[key] = value
+    return merged
+
+
+def _load_layered_optional_yaml(base_path: Path, local_path: Path) -> dict[str, Any]:
+    return _deep_merge(
+        _load_optional_yaml(base_path),
+        _load_optional_yaml(local_path),
+    )
+
+
 @dataclass(frozen=True)
 class NewsIntelligenceConfig:
     root: Path
@@ -35,6 +53,7 @@ class NewsIntelligenceConfig:
     freshness_half_lives: dict[str, Any]
     runtime: dict[str, Any]
     sec_edgar: dict[str, Any]
+    eodhd: dict[str, Any] = field(default_factory=dict)
     favourites: dict[str, Any] = field(default_factory=dict)
     world_news: dict[str, Any] = field(default_factory=dict)
     automation: dict[str, Any] = field(default_factory=dict)
@@ -75,6 +94,19 @@ class NewsIntelligenceConfig:
                 "Asterius News Intelligence contact@example.com",
             )
         )
+
+    @property
+    def eodhd_api_token(self) -> str:
+        env_name = str(self.eodhd.get("api_token_env", "EODHD_API_TOKEN"))
+        configured = os.environ.get(env_name)
+        if configured:
+            return configured
+        token = self.eodhd.get("api_token")
+        return str(token) if token else ""
+
+    @property
+    def eodhd_enabled(self) -> bool:
+        return bool(self.eodhd.get("enabled", False))
 
     def rules(self) -> list[dict[str, Any]]:
         rules = self.event_rules.get("rules", [])
@@ -161,6 +193,10 @@ def load_config(config_dir: Path | None = None) -> NewsIntelligenceConfig:
         freshness_half_lives=_load_yaml(directory / "freshness-half-lives.yaml"),
         runtime=_load_yaml(directory / "runtime.yaml"),
         sec_edgar=_load_yaml(directory / "sec-edgar.yaml"),
+        eodhd=_load_layered_optional_yaml(
+            directory / "eodhd.yaml",
+            directory / "eodhd.local.yaml",
+        ),
         favourites=_load_optional_yaml(directory / "favourites.yaml"),
         world_news=_load_optional_yaml(directory / "world-news.yaml"),
         automation=_load_optional_yaml(directory / "automation.yaml"),

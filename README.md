@@ -309,6 +309,20 @@ The connector rate-limits requests below SEC's published max request rate, retri
 
 Dashboard polling inspects the newest configured 8-K window for each company. It does not keep walking backward to backfill older filings after the newest records are already known.
 
+EODHD market-data settings live in `config/eodhd.yaml`. The tracked file must not contain the API key. Use either an environment variable:
+
+```bash
+EODHD_API_TOKEN="your-token"
+```
+
+or copy the committed example file:
+
+```text
+config/eodhd.local.example.yaml -> config/eodhd.local.yaml
+```
+
+and put the token in `config/eodhd.local.yaml`. The `config/*.local.yaml` pattern is ignored by Git, so local secret config stays out of commits.
+
 The favourites universe is configured in `config/favourites.yaml`. It currently includes the US shares, ETFs, indices, and UK LSE GBP ETFs listed for the initial calibration scope.
 
 World-news ingestion is configured in `config/world-news.yaml`. The current adapter is a controlled JSON source for market-relevant geopolitical and macro records covering the US, UK, China, Europe, and global-market risk themes.

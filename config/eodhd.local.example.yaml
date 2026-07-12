@@ -1,0 +1,3 @@
+# Copy this file to config/eodhd.local.yaml and keep the local file out of Git.
+# Alternatively, set EODHD_API_TOKEN in your shell environment.
+api_token: "paste-your-eodhd-api-token-here"
