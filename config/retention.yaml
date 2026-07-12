@@ -35,6 +35,31 @@ layers:
     description: Connector-level filing or source item lineage used to prevent duplicate ingestion and audit source provenance.
     retention_days: 1095
     adjustable: false
+  market_daily_bars:
+    label: Market Daily Bars
+    description: Cached daily OHLCV and adjusted-close bars used for long-window calibration.
+    retention_days: 3650
+    adjustable: true
+  market_intraday_bars:
+    label: Market Intraday Bars
+    description: Cached intraday bars around event windows used for short-horizon outcome measurement.
+    retention_days: 730
+    adjustable: true
+  market_data_requests:
+    label: Market Data Requests
+    description: EODHD request audit records, retry outcomes and estimated API call cost.
+    retention_days: 180
+    adjustable: true
+  event_outcomes:
+    label: Event Outcomes
+    description: Calculated event-study outcomes by event, signal, instrument and time window.
+    retention_days: null
+    adjustable: false
+  calibration_profiles:
+    label: Calibration Profiles
+    description: Versioned reliability profiles and learned calibration parameters.
+    retention_days: null
+    adjustable: false
   file_drop:
     label: File-drop JSON
     description: Exported downstream JSON payloads written for trading-app ingestion.

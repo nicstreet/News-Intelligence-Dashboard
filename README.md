@@ -197,6 +197,9 @@ Implemented endpoints:
 | `GET` | `/automation/status` | Show due/stale source state, background runner state, and recent automation runs |
 | `POST` | `/automation/run-now` | Run due-source polling and configured retention housekeeping immediately |
 | `GET` | `/calibration/report` | Build the current calibration report scaffold |
+| `POST` | `/market-data/eodhd/fetch` | Fetch and cache bounded EODHD daily or intraday bars |
+| `GET` | `/market-data/bars/recent` | List recently cached market-data bars |
+| `GET` | `/market-data/requests/recent` | List recent market-data request audit records |
 | `GET` | `/outputs/file-drop/status` | Show file-drop output configuration |
 | `POST` | `/outputs/file-drop/signals/{signal_id}` | Export one signal payload to file drop |
 | `POST` | `/outputs/file-drop/latest` | Export recent signal payloads to file drop |
@@ -323,6 +326,26 @@ config/eodhd.local.example.yaml -> config/eodhd.local.yaml
 
 and put the token in `config/eodhd.local.yaml`. The `config/*.local.yaml` pattern is ignored by Git, so local secret config stays out of commits.
 
+EODHD is used as a market-data adapter for historical calibration, not as a news source. It can cache:
+
+- daily OHLCV/adjusted-close bars
+- selected intraday bars around event windows
+- request audit records with estimated API call cost
+
+Example bounded fetch:
+
+```json
+{
+  "symbol": "AAPL",
+  "exchange": "NASDAQ",
+  "interval": "1d",
+  "from": "2026-07-01",
+  "to": "2026-07-12"
+}
+```
+
+The API token is never returned in market-data request records.
+
 The favourites universe is configured in `config/favourites.yaml`. It currently includes the US shares, ETFs, indices, and UK LSE GBP ETFs listed for the initial calibration scope.
 
 World-news ingestion is configured in `config/world-news.yaml`. The current adapter is a controlled JSON source for market-relevant geopolitical and macro records covering the US, UK, China, Europe, and global-market risk themes.
@@ -448,11 +471,26 @@ SQLite is used for the MVP. Repositories store JSON payloads for:
 - instrument impacts
 - signal snapshots
 - source lineage records
+- market-data request audit records
+- event outcomes
+- calibration profiles
 - file-drop JSON outputs
+
+Market bars use a structured SQLite table keyed by `symbol`, `exchange`, `interval`, and `timestamp_utc` so calibration can do deterministic range queries without scanning large JSON payloads.
 
 Generated SQLite databases are ignored by Git. The repository boundary is intentionally simple so SQLite can later be replaced by PostgreSQL without changing the domain contracts.
 
 Storage-retention defaults live in `config/retention.yaml`. `GET /storage/layers` reports logical JSON payload bytes, record count, ticker count, days worth of retained data, estimated bytes per day, and projected storage for adjustable layers.
+
+Market-data retention is split into:
+
+- `market_daily_bars`
+- `market_intraday_bars`
+- `market_data_requests`
+- `event_outcomes`
+- `calibration_profiles`
+
+Daily and intraday bars are adjustable cache layers. Event outcomes and calibration profiles are retained as versioned research/audit data.
 
 Retention enforcement is explicit:
 

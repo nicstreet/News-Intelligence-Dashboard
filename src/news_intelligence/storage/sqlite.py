@@ -9,6 +9,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from news_intelligence.models import MarketDataBar, MarketDataInterval
+
 
 def _utc_iso() -> str:
     return datetime.now(UTC).isoformat()
@@ -118,6 +120,246 @@ class JsonRecordRepository:
         return json.dumps(payload, sort_keys=True, default=str)
 
 
+class MarketBarRepository:
+    def __init__(self, db_path: Path) -> None:
+        self.db_path = db_path
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._initialise()
+
+    def save_many(self, bars: list[MarketDataBar]) -> int:
+        if not bars:
+            return 0
+        rows = [
+            (
+                bar.symbol.upper(),
+                self._exchange_key(bar.exchange),
+                bar.interval.value,
+                bar.timestamp_utc.isoformat(),
+                bar.open,
+                bar.high,
+                bar.low,
+                bar.close,
+                bar.adjusted_close,
+                bar.volume,
+                bar.source_name,
+                bar.loaded_at.isoformat(),
+                bar.record_environment.value,
+            )
+            for bar in bars
+        ]
+        with sqlite3.connect(self.db_path) as connection:
+            connection.executemany(
+                """
+                INSERT INTO market_bars (
+                    symbol,
+                    exchange,
+                    interval,
+                    timestamp_utc,
+                    open,
+                    high,
+                    low,
+                    close,
+                    adjusted_close,
+                    volume,
+                    source_name,
+                    loaded_at,
+                    record_environment
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(symbol, exchange, interval, timestamp_utc) DO UPDATE SET
+                    open = excluded.open,
+                    high = excluded.high,
+                    low = excluded.low,
+                    close = excluded.close,
+                    adjusted_close = excluded.adjusted_close,
+                    volume = excluded.volume,
+                    source_name = excluded.source_name,
+                    loaded_at = excluded.loaded_at,
+                    record_environment = excluded.record_environment
+                """,
+                rows,
+            )
+        return len(rows)
+
+    def list_range(
+        self,
+        *,
+        symbol: str,
+        interval: MarketDataInterval,
+        start_at: datetime,
+        end_at: datetime,
+        exchange: str | None = None,
+    ) -> list[MarketDataBar]:
+        with sqlite3.connect(self.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    symbol,
+                    exchange,
+                    interval,
+                    timestamp_utc,
+                    open,
+                    high,
+                    low,
+                    close,
+                    adjusted_close,
+                    volume,
+                    source_name,
+                    loaded_at,
+                    record_environment
+                FROM market_bars
+                WHERE symbol = ?
+                  AND exchange = ?
+                  AND interval = ?
+                  AND timestamp_utc >= ?
+                  AND timestamp_utc <= ?
+                ORDER BY timestamp_utc ASC
+                """,
+                (
+                    symbol.upper(),
+                    self._exchange_key(exchange),
+                    interval.value,
+                    start_at.isoformat(),
+                    end_at.isoformat(),
+                ),
+            ).fetchall()
+        return [self._bar_from_row(row) for row in rows]
+
+    def list_recent(self, limit: int = 50) -> list[dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as connection:
+            rows = connection.execute(
+                """
+                SELECT
+                    symbol,
+                    exchange,
+                    interval,
+                    timestamp_utc,
+                    open,
+                    high,
+                    low,
+                    close,
+                    adjusted_close,
+                    volume,
+                    source_name,
+                    loaded_at,
+                    record_environment
+                FROM market_bars
+                ORDER BY loaded_at DESC, timestamp_utc DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [self._bar_from_row(row).model_dump(mode="json") for row in rows]
+
+    def iter_rows(
+        self,
+        *,
+        intervals: set[MarketDataInterval] | None = None,
+    ) -> list[dict[str, Any]]:
+        parameters: list[str] = []
+        where = ""
+        if intervals:
+            values = sorted(interval.value for interval in intervals)
+            where = f"WHERE interval IN ({', '.join('?' for _ in values)})"
+            parameters.extend(values)
+        with sqlite3.connect(self.db_path) as connection:
+            rows = connection.execute(
+                f"""
+                SELECT
+                    symbol,
+                    exchange,
+                    interval,
+                    timestamp_utc,
+                    open,
+                    high,
+                    low,
+                    close,
+                    adjusted_close,
+                    volume,
+                    source_name,
+                    loaded_at,
+                    record_environment
+                FROM market_bars
+                {where}
+                """,
+                parameters,
+            ).fetchall()
+        return [self._bar_from_row(row).model_dump(mode="json") for row in rows]
+
+    def delete_rows(
+        self,
+        *,
+        keys: list[tuple[str, str, str, str]],
+    ) -> int:
+        if not keys:
+            return 0
+        deleted = 0
+        with sqlite3.connect(self.db_path) as connection:
+            for symbol, exchange, interval, timestamp_utc in keys:
+                cursor = connection.execute(
+                    """
+                    DELETE FROM market_bars
+                    WHERE symbol = ?
+                      AND exchange = ?
+                      AND interval = ?
+                      AND timestamp_utc = ?
+                    """,
+                    (symbol, exchange, interval, timestamp_utc),
+                )
+                deleted += cursor.rowcount
+        return deleted
+
+    def _initialise(self) -> None:
+        with sqlite3.connect(self.db_path) as connection:
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS market_bars (
+                    symbol TEXT NOT NULL,
+                    exchange TEXT NOT NULL DEFAULT '',
+                    interval TEXT NOT NULL,
+                    timestamp_utc TEXT NOT NULL,
+                    open REAL NOT NULL,
+                    high REAL NOT NULL,
+                    low REAL NOT NULL,
+                    close REAL NOT NULL,
+                    adjusted_close REAL,
+                    volume REAL,
+                    source_name TEXT NOT NULL,
+                    loaded_at TEXT NOT NULL,
+                    record_environment TEXT NOT NULL,
+                    PRIMARY KEY(symbol, exchange, interval, timestamp_utc)
+                )
+                """
+            )
+            connection.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_market_bars_lookup
+                ON market_bars(symbol, exchange, interval, timestamp_utc)
+                """
+            )
+
+    def _bar_from_row(self, row: tuple[Any, ...]) -> MarketDataBar:
+        exchange = str(row[1]) or None
+        return MarketDataBar(
+            symbol=str(row[0]),
+            exchange=exchange,
+            interval=MarketDataInterval(str(row[2])),
+            timestamp_utc=datetime.fromisoformat(str(row[3])),
+            open=float(row[4]),
+            high=float(row[5]),
+            low=float(row[6]),
+            close=float(row[7]),
+            adjusted_close=float(row[8]) if row[8] is not None else None,
+            volume=float(row[9]) if row[9] is not None else None,
+            source_name=str(row[10]),
+            loaded_at=datetime.fromisoformat(str(row[11])),
+            record_environment=str(row[12]),
+        )
+
+    def _exchange_key(self, exchange: str | None) -> str:
+        return exchange.upper() if exchange else ""
+
+
 class RepositoryBundle:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
@@ -130,6 +372,10 @@ class RepositoryBundle:
         self.source_filings = JsonRecordRepository(db_path, "source_filings")
         self.source_status = JsonRecordRepository(db_path, "source_status")
         self.automation_runs = JsonRecordRepository(db_path, "automation_runs")
+        self.market_bars = MarketBarRepository(db_path)
+        self.market_data_requests = JsonRecordRepository(db_path, "market_data_requests")
+        self.event_outcomes = JsonRecordRepository(db_path, "event_outcomes")
+        self.calibration_profiles = JsonRecordRepository(db_path, "calibration_profiles")
 
     def delete_test_run(self, test_run_id: str) -> dict[str, int]:
         return {
@@ -156,6 +402,9 @@ class RepositoryBundle:
             "source_filings": self.source_filings,
             "source_status": self.source_status,
             "automation_runs": self.automation_runs,
+            "market_data_requests": self.market_data_requests,
+            "event_outcomes": self.event_outcomes,
+            "calibration_profiles": self.calibration_profiles,
         }
 
     def _is_development_or_test_record(self, payload: dict[str, Any]) -> bool:

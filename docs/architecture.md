@@ -95,10 +95,30 @@ Current repositories:
 - `signal_snapshots`
 - `source_filings`
 - `source_status`
+- `market_data_requests`
+- `event_outcomes`
+- `calibration_profiles`
+
+Market bars are the exception to the generic JSON repository pattern. They are stored in a structured `market_bars` table keyed by `symbol`, `exchange`, `interval`, and `timestamp_utc` because calibration needs efficient range queries and idempotent bar updates.
 
 Generic non-filing source records are stored through the same source-record repository in this MVP. SEC-specific filing fields remain available on SEC records.
 
 This boundary is intended to be replaceable later with PostgreSQL or a message/event store.
+
+### Market Data
+
+Market data is separate from source/news ingestion:
+
+```text
+EODHD
+-> MarketDataService
+-> market_bars cache
+-> event timing anchor
+-> event outcome calculation
+-> calibration profiles
+```
+
+The EODHD API token is read from `EODHD_API_TOKEN` or ignored local config. It is not stored in request audit records.
 
 ### API And Dashboard
 

@@ -237,6 +237,106 @@ class SourceIngestionRun(ContractModel):
         return ensure_utc(value)
 
 
+class MarketDataInterval(StrEnum):
+    ONE_MINUTE = "1m"
+    FIVE_MINUTE = "5m"
+    ONE_HOUR = "1h"
+    DAILY = "1d"
+
+
+class MarketDataBar(ContractModel):
+    schema_version: str = "1.0.0"
+    symbol: str
+    exchange: str | None = None
+    interval: MarketDataInterval
+    timestamp_utc: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    adjusted_close: float | None = None
+    volume: float | None = None
+    source_name: str = "EODHD"
+    loaded_at: datetime = Field(default_factory=utc_now)
+    record_environment: RuntimeEnvironment = RuntimeEnvironment.DEVELOPMENT
+
+    @field_validator("timestamp_utc", "loaded_at")
+    @classmethod
+    def _normalise_datetime(cls, value: datetime) -> datetime:
+        return ensure_utc(value)
+
+    @field_validator("symbol")
+    @classmethod
+    def _normalise_symbol(cls, value: str) -> str:
+        return value.upper()
+
+    @field_validator("exchange")
+    @classmethod
+    def _normalise_exchange(cls, value: str | None) -> str | None:
+        return value.upper() if value else None
+
+
+class MarketDataRequest(ContractModel):
+    schema_version: str = "1.0.0"
+    request_id: str
+    provider: str = "EODHD"
+    endpoint: str
+    symbol: str
+    exchange: str | None = None
+    interval: MarketDataInterval
+    requested_from: datetime
+    requested_to: datetime
+    requested_at: datetime
+    completed_at: datetime | None = None
+    status: Literal["success", "failed"] = "success"
+    records_returned: int = Field(ge=0, default=0)
+    records_stored: int = Field(ge=0, default=0)
+    estimated_api_call_cost: int = Field(ge=0, default=1)
+    error: str | None = None
+    record_environment: RuntimeEnvironment = RuntimeEnvironment.DEVELOPMENT
+
+    @field_validator("requested_from", "requested_to", "requested_at", "completed_at")
+    @classmethod
+    def _normalise_datetime(cls, value: datetime | None) -> datetime | None:
+        return ensure_utc(value) if value is not None else None
+
+    @field_validator("symbol")
+    @classmethod
+    def _normalise_symbol(cls, value: str) -> str:
+        return value.upper()
+
+    @field_validator("exchange")
+    @classmethod
+    def _normalise_exchange(cls, value: str | None) -> str | None:
+        return value.upper() if value else None
+
+
+class MarketSession(StrEnum):
+    PRE_MARKET = "PRE_MARKET"
+    REGULAR_SESSION = "REGULAR_SESSION"
+    AFTER_HOURS = "AFTER_HOURS"
+    CLOSED = "CLOSED"
+    WEEKEND = "WEEKEND"
+    HOLIDAY = "HOLIDAY"
+    UNKNOWN = "UNKNOWN"
+
+
+class MarketEventAnchor(ContractModel):
+    schema_version: str = "1.0.0"
+    event_timestamp: datetime
+    exchange: str
+    session: MarketSession
+    market_anchor_at: datetime
+    anchor_source: Literal["available_bar", "session_calendar"]
+    regular_session_anchor_at: datetime | None = None
+    notes: list[str] = Field(default_factory=list)
+
+    @field_validator("event_timestamp", "market_anchor_at", "regular_session_anchor_at")
+    @classmethod
+    def _normalise_datetime(cls, value: datetime | None) -> datetime | None:
+        return ensure_utc(value) if value is not None else None
+
+
 class RawNewsItem(ContractModel):
     raw_id: str | None = None
     headline: str = Field(min_length=1)

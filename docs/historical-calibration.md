@@ -4,6 +4,15 @@ Historical calibration is planned for `v0.4`. The goal is to measure how event t
 
 Current implementation status: the project now has a favourites-universe scoped calibration report scaffold at `GET /calibration/report`. It groups persisted favourite-universe signals by event profile and exposes the intended outcome windows and confounder grades. It does not yet join market data or update live scoring automatically.
 
+Current market-data foundation:
+
+- EODHD config is loaded from `config/eodhd.yaml` with local secrets kept in ignored `config/eodhd.local.yaml`.
+- `MarketDataService` can fetch bounded daily or intraday bars through EODHD.
+- `market_bars` stores bars by `symbol`, `exchange`, `interval`, and `timestamp_utc`.
+- `market_data_requests` stores request audit records without returning the API token.
+- storage retention now manages daily bars, intraday bars and request audits separately.
+- `EventMarketTimer` classifies event timing and provides first-tradable-anchor timestamps.
+
 ## Purpose
 
 Current scoring is deterministic and rule-based. Calibration should turn observed outcomes into better priors and thresholds while preserving the deterministic pipeline as the explainable baseline.
@@ -137,6 +146,38 @@ Persisted event/signal snapshots
 
 The first implementation can be offline and file-based. It does not need to run inside the live ingestion process.
 
+## Event Timing
+
+Calibration should distinguish the factual event timestamp from the first practical trading anchor.
+
+Stored/derived timestamps should include:
+
+- `event_effective_at`: when the event factually relates to
+- `first_publication_at`: when the market could first learn it
+- `market_anchor_at`: the first usable tradable timestamp for outcome measurement
+
+Initial session handling:
+
+| Situation | Anchor |
+| --- | --- |
+| Regular-session news | event timestamp, or first cached bar at/after event |
+| Pre-market news | same-day regular open unless pre-market bars are explicitly supplied |
+| After-hours news | first cached after-hours bar if supplied, otherwise next regular open |
+| Weekend or holiday | next regular open |
+| Late SEC filing | filing acceptance time remains factual; next tradable timestamp is the market anchor |
+
+Missing intraday data should not be fabricated. The fallback order is:
+
+```text
+1m bars
+-> 5m bars
+-> 1h bars
+-> daily bars
+-> outcome unavailable
+```
+
+Outcomes calculated from fallback data must mark the result as partial.
+
 ## Minimum v0.4 Acceptance Criteria
 
 - Build a calibration dataset from persisted event/signal snapshots.
@@ -151,6 +192,10 @@ Implemented first slice:
 - favourites universe config in `config/favourites.yaml`
 - calibration report endpoint at `GET /calibration/report`
 - report scaffolding with fixed outcome windows
+- EODHD market-data config and gitignored local token support
+- structured `market_bars` cache
+- market-data retention layers
+- event timing anchor helper
 - no automatic live-score mutation
 
 ## Later Extensions

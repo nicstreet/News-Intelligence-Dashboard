@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date, datetime
 from typing import Any
 from uuid import uuid4
 
@@ -7,6 +8,8 @@ from fastapi import APIRouter, Body, HTTPException
 
 from news_intelligence.calibration.service import HistoricalCalibrationService
 from news_intelligence.ingestion.adapters import coerce_raw_news_items
+from news_intelligence.market_data.service import MarketDataService
+from news_intelligence.models import MarketDataInterval
 from news_intelligence.outputs.file_drop import FileDropExporter
 from news_intelligence.pipeline import NewsIntelligencePipeline
 from news_intelligence.schemas.export import public_json_schemas
@@ -23,6 +26,7 @@ pipeline = NewsIntelligencePipeline()
 automation_runner: SourceAutomationBackgroundRunner | None = None
 NEWS_PAYLOAD = Body(...)
 RETENTION_PAYLOAD = Body(default=None)
+MARKET_DATA_PAYLOAD = Body(...)
 
 
 @router.post("/news/analyse")
@@ -230,6 +234,56 @@ async def calibration_report(limit: int = 500) -> dict[str, Any]:
     return service.report(limit=limit)
 
 
+@router.post("/market-data/eodhd/fetch")
+async def fetch_eodhd_market_data(
+    payload: dict[str, Any] = MARKET_DATA_PAYLOAD,
+) -> dict[str, Any]:
+    try:
+        symbol = str(payload["symbol"]).upper()
+        exchange = str(payload["exchange"]).upper() if payload.get("exchange") else None
+        interval = MarketDataInterval(str(payload.get("interval", "1d")))
+        service = MarketDataService(
+            pipeline.config,
+            pipeline.repositories,
+            clock=pipeline.clock,
+        )
+        if interval == MarketDataInterval.DAILY:
+            start = _parse_date(str(payload["from"]))
+            end = _parse_date(str(payload["to"]))
+            return service.fetch_daily(
+                symbol=symbol,
+                exchange=exchange,
+                start=start,
+                end=end,
+            )
+        return service.fetch_intraday(
+            symbol=symbol,
+            exchange=exchange,
+            interval=interval,
+            start_at=_parse_datetime(str(payload["from"])),
+            end_at=_parse_datetime(str(payload["to"])),
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=422, detail=f"Missing required field: {exc}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"EODHD market-data fetch failed: {exc}",
+        ) from exc
+
+
+@router.get("/market-data/bars/recent")
+async def recent_market_bars(limit: int = 50) -> list[dict[str, Any]]:
+    return MarketDataService(pipeline.config, pipeline.repositories).recent_bars(limit=limit)
+
+
+@router.get("/market-data/requests/recent")
+async def recent_market_data_requests(limit: int = 50) -> list[dict[str, Any]]:
+    return MarketDataService(pipeline.config, pipeline.repositories).recent_requests(limit=limit)
+
+
 @router.get("/outputs/file-drop/status")
 async def file_drop_status() -> dict[str, Any]:
     return FileDropExporter(pipeline.config, pipeline.repositories).status()
@@ -276,6 +330,16 @@ async def export_signal_to_file_drop(signal_id: str) -> dict[str, Any]:
 async def export_latest_to_file_drop(limit: int = 20) -> list[dict[str, Any]]:
     return FileDropExporter(pipeline.config, pipeline.repositories).export_latest(limit=limit)
 
+
+def _parse_date(value: str) -> date:
+    return date.fromisoformat(value[:10])
+
+
+def _parse_datetime(value: str) -> datetime:
+    candidate = value.strip()
+    if candidate.endswith("Z"):
+        candidate = f"{candidate[:-1]}+00:00"
+    return datetime.fromisoformat(candidate)
 
 
 @router.get("/schemas")

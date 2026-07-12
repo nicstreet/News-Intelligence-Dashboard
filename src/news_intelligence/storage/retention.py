@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from news_intelligence.config import NewsIntelligenceConfig
+from news_intelligence.models import MarketDataInterval
 from news_intelligence.storage import JsonRecordRepository, RepositoryBundle
 from news_intelligence.utils import now_utc, to_utc
 
@@ -23,6 +24,8 @@ TIMESTAMP_KEYS = {
     "ingested_at",
     "created_at",
     "updated_at",
+    "timestamp_utc",
+    "loaded_at",
     "first_publication_at",
     "latest_article_at",
     "latest_material_update_at",
@@ -50,6 +53,18 @@ REPOSITORY_LAYER_KEYS = {
     "instrument_impacts",
     "signal_snapshots",
     "source_filings",
+    "market_data_requests",
+    "event_outcomes",
+    "calibration_profiles",
+}
+
+MARKET_BAR_LAYER_INTERVALS = {
+    "market_daily_bars": {MarketDataInterval.DAILY},
+    "market_intraday_bars": {
+        MarketDataInterval.ONE_MINUTE,
+        MarketDataInterval.FIVE_MINUTE,
+        MarketDataInterval.ONE_HOUR,
+    },
 }
 
 RETENTION_TIMESTAMP_PRIORITY = (
@@ -57,12 +72,14 @@ RETENTION_TIMESTAMP_PRIORITY = (
     "processed_at",
     "published_at",
     "first_seen_at",
+    "timestamp_utc",
     "ingested_at",
     "filing_time",
     "expires_at",
     "expiry_time",
     "updated_at",
     "created_at",
+    "loaded_at",
     "latest_article_at",
 )
 
@@ -89,8 +106,18 @@ class StorageLayerSummaryService:
             self._repository_layer("instrument_impacts", self._repositories.impacts),
             self._repository_layer("signal_snapshots", self._repositories.signals),
             self._repository_layer("source_filings", self._repositories.source_filings),
+            self._market_bar_layer("market_daily_bars"),
+            self._market_bar_layer("market_intraday_bars"),
+            self._repository_layer(
+                "market_data_requests",
+                self._repositories.market_data_requests,
+            ),
+            self._repository_layer("event_outcomes", self._repositories.event_outcomes),
+            self._repository_layer(
+                "calibration_profiles",
+                self._repositories.calibration_profiles,
+            ),
             self._file_drop_layer(),
-            self._empty_layer("calibration"),
         ]
         return {
             "schema_version": "1.0.0",
@@ -184,13 +211,26 @@ class StorageLayerSummaryService:
         layer["directories"] = [str(directory) for directory in directories]
         return layer
 
-    def _empty_layer(self, layer_key: str) -> dict[str, Any]:
+    def _market_bar_layer(self, layer_key: str) -> dict[str, Any]:
+        current_bytes = 0
+        record_count = 0
+        timestamps: list[datetime] = []
+        tickers: set[str] = set()
+        intervals = MARKET_BAR_LAYER_INTERVALS[layer_key]
+
+        for payload in self._repositories.market_bars.iter_rows(intervals=intervals):
+            payload_json = json.dumps(payload, sort_keys=True, default=str)
+            current_bytes += len(payload_json.encode("utf-8"))
+            record_count += 1
+            timestamps.extend(self._timestamps_from_payload(payload))
+            tickers.update(self._symbols_from_payload(payload))
+
         return self._complete_layer(
             layer_key=layer_key,
-            current_bytes=0,
-            record_count=0,
-            timestamps=[],
-            ticker_count=0,
+            current_bytes=current_bytes,
+            record_count=record_count,
+            timestamps=timestamps,
+            ticker_count=len(tickers),
         )
 
     def _complete_layer(
@@ -277,8 +317,25 @@ class StorageLayerSummaryService:
                 apply_changes=apply_changes,
             ),
             self._retention_not_adjustable("source_filings"),
+            self._market_bar_retention_plan(
+                "market_daily_bars",
+                overrides,
+                apply_changes=apply_changes,
+            ),
+            self._market_bar_retention_plan(
+                "market_intraday_bars",
+                overrides,
+                apply_changes=apply_changes,
+            ),
+            self._repository_retention_plan(
+                "market_data_requests",
+                self._repositories.market_data_requests,
+                overrides,
+                apply_changes=apply_changes,
+            ),
+            self._retention_not_adjustable("event_outcomes"),
+            self._retention_not_adjustable("calibration_profiles"),
             self._file_drop_retention_plan(overrides, apply_changes=apply_changes),
-            self._retention_not_adjustable("calibration"),
         ]
         return {
             "schema_version": "1.0.0",
@@ -343,6 +400,63 @@ class StorageLayerSummaryService:
             retention_days=retention_days,
             cutoff=cutoff,
             candidate_records=len(candidate_ids),
+            candidate_bytes=candidate_bytes,
+            deleted_records=deleted_records,
+            deleted_bytes=candidate_bytes if apply_changes else 0,
+            skipped_production_records=skipped_production,
+            skipped_missing_timestamp_records=skipped_missing_timestamp,
+        )
+
+    def _market_bar_retention_plan(
+        self,
+        layer_key: str,
+        overrides: Mapping[str, int],
+        *,
+        apply_changes: bool,
+    ) -> dict[str, Any]:
+        retention_days = self._effective_retention_days(layer_key, overrides)
+        if retention_days is None:
+            return self._retention_not_adjustable(layer_key)
+
+        cutoff = self._clock() - timedelta(days=retention_days)
+        candidate_keys: list[tuple[str, str, str, str]] = []
+        candidate_bytes = 0
+        skipped_production = 0
+        skipped_missing_timestamp = 0
+
+        for payload in self._repositories.market_bars.iter_rows(
+            intervals=MARKET_BAR_LAYER_INTERVALS[layer_key],
+        ):
+            if self._is_production_record(payload):
+                skipped_production += 1
+                continue
+            timestamp = self._retention_timestamp(payload)
+            if timestamp is None:
+                skipped_missing_timestamp += 1
+                continue
+            if timestamp < cutoff:
+                timestamp_key = timestamp.isoformat()
+                candidate_keys.append(
+                    (
+                        str(payload.get("symbol", "")).upper(),
+                        str(payload.get("exchange") or "").upper(),
+                        str(payload.get("interval", "")),
+                        timestamp_key,
+                    )
+                )
+                candidate_bytes += len(
+                    json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+                )
+
+        deleted_records = 0
+        if apply_changes:
+            deleted_records = self._repositories.market_bars.delete_rows(keys=candidate_keys)
+
+        return self._retention_layer_payload(
+            layer_key=layer_key,
+            retention_days=retention_days,
+            cutoff=cutoff,
+            candidate_records=len(candidate_keys),
             candidate_bytes=candidate_bytes,
             deleted_records=deleted_records,
             deleted_bytes=candidate_bytes if apply_changes else 0,
@@ -502,7 +616,11 @@ class StorageLayerSummaryService:
             return {}
         overrides: dict[str, int] = {}
         for layer_key, value in retention_days.items():
-            if layer_key not in {*REPOSITORY_LAYER_KEYS, "file_drop", "calibration"}:
+            if layer_key not in {
+                *REPOSITORY_LAYER_KEYS,
+                *MARKET_BAR_LAYER_INTERVALS,
+                "file_drop",
+            }:
                 continue
             try:
                 days = int(value)
