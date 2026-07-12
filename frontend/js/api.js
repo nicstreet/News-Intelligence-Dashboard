@@ -20,6 +20,8 @@ const MOCK_MODE = false;
     calibration: "/calibration/report",
     fileDropStatus: "/outputs/file-drop/status",
     fileDropLatest: "/outputs/file-drop/latest",
+    marketBars: "/market-data/bars/recent",
+    marketRequests: "/market-data/requests/recent",
     storageLayers: "/storage/layers",
     retentionDryRun: "/storage/retention/dry-run",
     retentionApply: "/storage/retention/apply",
@@ -176,6 +178,20 @@ const MOCK_MODE = false;
     return request(ENDPOINTS.fileDropStatus);
   }
 
+  async function marketBars() {
+    if (useMockMode()) {
+      return [];
+    }
+    return request(ENDPOINTS.marketBars);
+  }
+
+  async function marketRequests() {
+    if (useMockMode()) {
+      return [];
+    }
+    return request(ENDPOINTS.marketRequests);
+  }
+
   async function storageLayers() {
     if (useMockMode()) {
       return {
@@ -290,6 +306,8 @@ const MOCK_MODE = false;
     favouritesUniverse,
     calibrationReport,
     fileDropStatus,
+    marketBars,
+    marketRequests,
     storageLayers,
     storageRetentionDryRun,
     applyStorageRetention,

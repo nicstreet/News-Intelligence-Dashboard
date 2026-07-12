@@ -9,6 +9,8 @@
     universe: null,
     calibration: null,
     fileDrop: null,
+    marketBars: [],
+    marketRequests: [],
     storage: null,
     storageRetention: {},
     retentionPlan: null,
@@ -41,6 +43,7 @@
     refreshUniverse();
     refreshCalibration();
     refreshFileDrop();
+    refreshMarketData();
     refreshStorage();
     refreshRecent();
     refreshTestRuns();
@@ -72,7 +75,10 @@
       "event-detail-evidence", "event-detail-cluster", "event-detail-json",
       "refresh-storage", "storage-summary", "storage-visualisation", "storage-layers",
       "dry-run-retention", "apply-retention-policy", "retention-preview",
-      "retention-apply-status"
+      "retention-apply-status", "sidebar-events-count", "sidebar-signals-count",
+      "sidebar-sources-status", "sidebar-universe-count", "sidebar-calibration-count",
+      "sidebar-file-drop-status", "sidebar-market-data-count", "sidebar-active-watch",
+      "page-heading", "page-subtitle", "refresh-market-data", "market-bars", "market-requests"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
     });
@@ -101,6 +107,9 @@
     });
     document.querySelectorAll(".tab").forEach((button) => {
       button.addEventListener("click", () => activatePanel(button.dataset.panel));
+    });
+    document.querySelectorAll("[data-event-detail-tab]").forEach((button) => {
+      button.addEventListener("click", () => activateEventDetailTab(button.dataset.eventDetailTab));
     });
     elements["json-selector"].addEventListener("change", () => {
       state.selectedJson = elements["json-selector"].value;
@@ -136,12 +145,14 @@
     elements["refresh-universe"].addEventListener("click", refreshUniverse);
     elements["refresh-calibration"].addEventListener("click", refreshCalibration);
     elements["refresh-file-drop"].addEventListener("click", refreshFileDrop);
+    elements["refresh-market-data"].addEventListener("click", refreshMarketData);
     elements["refresh-storage"].addEventListener("click", refreshStorage);
     elements["dry-run-retention"].addEventListener("click", dryRunRetention);
     elements["apply-retention-policy"].addEventListener("click", applyRetentionPolicy);
     elements["export-latest-file-drop"].addEventListener("click", exportLatestFileDrop);
     elements["recent-events"].addEventListener("click", loadRecentDetail);
     elements["event-list"].addEventListener("click", loadRecentDetail);
+    elements["sidebar-active-watch"].addEventListener("click", loadRecentDetail);
     elements["storage-layers"].addEventListener("input", updateStorageRetention);
     elements["health-check"].addEventListener("click", () => checkHealth(true));
     elements["start-test-run"].addEventListener("click", startNewTestRun);
@@ -299,8 +310,10 @@
     renderUniverse();
     renderCalibration();
     renderFileDrop();
+    renderMarketData();
     renderStorage();
     renderDeveloper();
+    renderSidebar();
     renderView();
   }
 
@@ -377,6 +390,7 @@
       null,
       2
     );
+    renderSidebar();
   }
 
   function renderAutomation() {
@@ -395,6 +409,11 @@
 
   function renderFileDrop() {
     elements["file-drop-status"].innerHTML = window.NewsRenderers.renderFileDropStatus(state.fileDrop);
+  }
+
+  function renderMarketData() {
+    elements["market-bars"].innerHTML = window.NewsRenderers.renderMarketBars(state.marketBars);
+    elements["market-requests"].innerHTML = window.NewsRenderers.renderMarketRequests(state.marketRequests);
   }
 
   function renderStorage() {
@@ -483,9 +502,11 @@
     try {
       state.sources = await window.NewsApi.sourceStatus();
       renderSources();
+      renderSidebar();
     } catch (error) {
       state.sources = [];
       showError(error);
+      renderSidebar();
     }
   }
 
@@ -541,12 +562,14 @@
     try {
       state.universe = await window.NewsApi.favouritesUniverse();
       renderUniverse();
+      renderSidebar();
     } catch (error) {
       state.universe = null;
       if (!window.NewsApi.isMockMode()) {
         showError(error);
       }
       renderUniverse();
+      renderSidebar();
     }
   }
 
@@ -554,12 +577,14 @@
     try {
       state.calibration = await window.NewsApi.calibrationReport();
       renderCalibration();
+      renderSidebar();
     } catch (error) {
       state.calibration = null;
       if (!window.NewsApi.isMockMode()) {
         showError(error);
       }
       renderCalibration();
+      renderSidebar();
     }
   }
 
@@ -567,12 +592,35 @@
     try {
       state.fileDrop = await window.NewsApi.fileDropStatus();
       renderFileDrop();
+      renderSidebar();
     } catch (error) {
       state.fileDrop = null;
       if (!window.NewsApi.isMockMode()) {
         showError(error);
       }
       renderFileDrop();
+      renderSidebar();
+    }
+  }
+
+  async function refreshMarketData() {
+    try {
+      const [bars, requests] = await Promise.all([
+        window.NewsApi.marketBars(),
+        window.NewsApi.marketRequests()
+      ]);
+      state.marketBars = bars || [];
+      state.marketRequests = requests || [];
+      renderMarketData();
+      renderSidebar();
+    } catch (error) {
+      state.marketBars = [];
+      state.marketRequests = [];
+      if (!window.NewsApi.isMockMode()) {
+        showError(error);
+      }
+      renderMarketData();
+      renderSidebar();
     }
   }
 
@@ -725,10 +773,12 @@
         state.selectedEventId
       );
       renderEventWorkspace();
+      renderSidebar();
     } catch (error) {
       state.recentEvents = [];
       elements["recent-events"].innerHTML = window.NewsRenderers.renderRecent([]);
       renderEventWorkspace();
+      renderSidebar();
       if (!window.NewsApi.isMockMode()) {
         showError(error);
       }
@@ -876,6 +926,7 @@
   }
 
   function renderView() {
+    renderPageTitle();
     document.querySelectorAll("[data-view]").forEach((button) => {
       button.classList.toggle("active", button.dataset.view === state.currentView);
     });
@@ -883,6 +934,25 @@
       const views = String(section.dataset.views || "").split(/\s+/);
       section.classList.toggle("view-hidden", !views.includes(state.currentView));
     });
+  }
+
+  function renderPageTitle() {
+    const titles = {
+      events: ["Events", "Live event intelligence, signal state, source evidence and calibration readiness."],
+      overview: ["Overview", "Pipeline status, recent events, source automation and fixture controls."],
+      signals: ["Signals", "Instrument-level signal snapshots, confidence, quality and impact reasoning."],
+      sources: ["Sources", "Connector status, polling controls and source lineage records."],
+      universe: ["Favourites", "Configured watch universe, themes, exchanges and benchmarks."],
+      calibration: ["Calibration", "Historical outcome scaffolding and profile readiness."],
+      "market-data": ["Market Data", "Cached EODHD bars and request audit records for calibration."],
+      "file-drop": ["File Drop", "Atomic JSON exports for downstream trading-app ingestion."],
+      json: ["JSON / Audit", "Raw event, cluster, signal and pipeline contract inspection."],
+      developer: ["Developer", "Fixture test runs, reset controls and request/response inspection."],
+      storage: ["Storage / Retention", "Layer storage, retention sliders and cleanup previews."]
+    };
+    const [heading, subtitle] = titles[state.currentView] || titles.events;
+    if (elements["page-heading"]) elements["page-heading"].textContent = heading;
+    if (elements["page-subtitle"]) elements["page-subtitle"].textContent = subtitle;
   }
 
   function activatePanel(name) {
@@ -893,6 +963,43 @@
     ["signal", "evidence", "cluster", "json", "sources", "developer"].forEach((panel) => {
       elements[`panel-${panel}`].classList.toggle("hidden", panel !== name);
     });
+  }
+
+  function activateEventDetailTab(name) {
+    if (!name) return;
+    document.querySelectorAll("[data-event-detail-tab]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.eventDetailTab === name);
+    });
+    document.querySelectorAll("[data-event-detail-panel]").forEach((panel) => {
+      panel.classList.toggle("hidden", panel.dataset.eventDetailPanel !== name);
+    });
+  }
+
+  function renderSidebar() {
+    setText("sidebar-events-count", String((state.recentEvents || []).length));
+    setText("sidebar-signals-count", String(state.result && state.result.signals ? state.result.signals.length : 0));
+    setText("sidebar-sources-status", sourceStatusLabel());
+    setText("sidebar-universe-count", String(state.universe && state.universe.instruments ? state.universe.instruments.length : 0));
+    setText("sidebar-calibration-count", String(state.calibration && state.calibration.signal_count ? state.calibration.signal_count : 0));
+    setText("sidebar-file-drop-status", state.fileDrop && state.fileDrop.enabled ? "On" : "Idle");
+    setText("sidebar-market-data-count", String((state.marketBars || []).length));
+    if (elements["sidebar-active-watch"]) {
+      elements["sidebar-active-watch"].innerHTML = window.NewsRenderers.renderSidebarWatch(
+        state.recentEvents || []
+      );
+    }
+  }
+
+  function sourceStatusLabel() {
+    const sources = state.sources || [];
+    if (sources.length === 0) return "n/a";
+    if (sources.some((source) => String(source.current_status || "").toUpperCase() === "ERROR")) return "ERR";
+    if (sources.some((source) => source.stale)) return "STALE";
+    return "OK";
+  }
+
+  function setText(id, value) {
+    if (elements[id]) elements[id].textContent = value;
   }
 
   function showError(error) {
@@ -993,6 +1100,7 @@
       refreshUniverse(),
       refreshCalibration(),
       refreshFileDrop(),
+      refreshMarketData(),
       refreshStorage(),
       refreshRecent(),
       refreshTestRuns(),

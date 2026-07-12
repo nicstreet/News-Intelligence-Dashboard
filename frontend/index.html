@@ -8,13 +8,21 @@
   </head>
   <body>
     <header class="topbar">
-      <div>
-        <h1>Asterius News Intelligence</h1>
-        <p>Raw news -> structured event -> instrument signal</p>
+      <div class="brand">
+        <div class="brand-mark">AI</div>
+        <div>
+          <h1>Asterius News Intelligence</h1>
+          <p>Event intelligence, source monitoring and calibrated signal output</p>
+        </div>
       </div>
       <div class="status-strip">
+        <span id="api-status" class="status-pill">Backend: CHECKING</span>
+        <span id="mode-status" class="status-pill muted">Runtime: LIVE BACKEND</span>
         <details class="options-menu" id="options-menu">
-          <summary>Options</summary>
+          <summary aria-label="Options">
+            <i class="fa-solid fa-ellipsis" aria-hidden="true"></i>
+            <span class="icon-fallback">...</span>
+          </summary>
           <div class="options-menu-panel">
             <button id="options-sources" type="button">Sources</button>
             <button id="options-storage" type="button">Storage / Retention</button>
@@ -22,407 +30,553 @@
             <button id="options-refresh-dashboard" type="button">Refresh Dashboard</button>
           </div>
         </details>
-        <span id="api-status" class="status-pill">Backend: CHECKING</span>
-        <span id="mode-status" class="status-pill muted">Runtime: LIVE BACKEND</span>
       </div>
     </header>
 
     <div class="app-shell">
-      <aside class="sidebar" aria-label="Dashboard views">
-        <nav class="side-nav">
-          <button class="side-nav-button active" data-view="events" type="button">Events</button>
-          <button class="side-nav-button" data-view="overview" type="button">Overview</button>
-          <button class="side-nav-button" data-view="signals" type="button">Signals</button>
-          <button class="side-nav-button" data-view="universe" type="button">Favourites</button>
-          <button class="side-nav-button" data-view="calibration" type="button">Calibration</button>
-          <button class="side-nav-button" data-view="file-drop" type="button">File Drop</button>
-          <button class="side-nav-button" data-view="json" type="button">JSON / Audit</button>
-          <button class="side-nav-button" data-view="developer" type="button">Developer</button>
-        </nav>
-        <div class="sidebar-actions">
-          <button id="poll-due-sources" type="button">Poll Due Sources</button>
-          <button id="poll-world-news" type="button">Poll World News</button>
-          <button id="sidebar-start-test-run" type="button">Start Test Run</button>
+      <aside id="nav-pane" aria-label="Dashboard views">
+        <div class="nav-header">
+          <input class="search" placeholder="Search events, symbols, sources" aria-label="Search">
+        </div>
+        <div class="nav-scroll">
+          <section class="nav-group" aria-label="Views">
+            <div class="nav-label">Views</div>
+            <button class="tool-row side-nav-button active" data-view="events" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="EV"><i class="fa-solid fa-newspaper" aria-hidden="true"></i></span>
+                <span class="row-title">Events</span>
+              </span>
+              <span id="sidebar-events-count" class="row-metric">0</span>
+            </button>
+            <button class="tool-row side-nav-button" data-view="overview" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="OV"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i></span>
+                <span class="row-title">Overview</span>
+              </span>
+              <span class="row-metric">Live</span>
+            </button>
+            <button class="tool-row side-nav-button" data-view="signals" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="SG"><i class="fa-solid fa-chart-line" aria-hidden="true"></i></span>
+                <span class="row-title">Signals</span>
+              </span>
+              <span id="sidebar-signals-count" class="row-metric">0</span>
+            </button>
+            <button class="tool-row side-nav-button" data-view="sources" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="SO"><i class="fa-solid fa-satellite-dish" aria-hidden="true"></i></span>
+                <span class="row-title">Sources</span>
+              </span>
+              <span id="sidebar-sources-status" class="row-metric">OK</span>
+            </button>
+            <button class="tool-row side-nav-button" data-view="market-data" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="MD"><i class="fa-solid fa-database" aria-hidden="true"></i></span>
+                <span class="row-title">Market Data</span>
+              </span>
+              <span id="sidebar-market-data-count" class="row-metric">0</span>
+            </button>
+            <button class="tool-row side-nav-button" data-view="universe" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="FV"><i class="fa-solid fa-star" aria-hidden="true"></i></span>
+                <span class="row-title">Favourites</span>
+              </span>
+              <span id="sidebar-universe-count" class="row-metric">0</span>
+            </button>
+            <button class="tool-row side-nav-button" data-view="calibration" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="CA"><i class="fa-solid fa-scale-balanced" aria-hidden="true"></i></span>
+                <span class="row-title">Calibration</span>
+              </span>
+              <span id="sidebar-calibration-count" class="row-metric">0</span>
+            </button>
+            <button class="tool-row side-nav-button" data-view="file-drop" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="FD"><i class="fa-solid fa-folder-open" aria-hidden="true"></i></span>
+                <span class="row-title">File Drop</span>
+              </span>
+              <span id="sidebar-file-drop-status" class="row-metric">Idle</span>
+            </button>
+            <button class="tool-row side-nav-button" data-view="json" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="JS"><i class="fa-solid fa-code" aria-hidden="true"></i></span>
+                <span class="row-title">JSON / Audit</span>
+              </span>
+              <span class="row-metric">Raw</span>
+            </button>
+            <button class="tool-row side-nav-button" data-view="developer" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="DV"><i class="fa-solid fa-screwdriver-wrench" aria-hidden="true"></i></span>
+                <span class="row-title">Developer</span>
+              </span>
+              <span class="row-metric">Test</span>
+            </button>
+          </section>
+
+          <section class="nav-group" aria-label="Recent events">
+            <div class="nav-label">Active Watch</div>
+            <div id="sidebar-active-watch"></div>
+          </section>
+        </div>
+        <div class="nav-footer">
+          <button id="poll-due-sources" class="btn" type="button">Poll Due</button>
+          <button id="poll-world-news" class="btn" type="button">World News</button>
+          <button id="sidebar-start-test-run" class="btn" type="button">Test Run</button>
         </div>
       </aside>
 
-      <main class="layout">
-      <section class="panel input-panel view-section" data-views="overview developer" aria-labelledby="news-input-heading">
-        <div class="section-heading">
-          <h2 id="news-input-heading">News Input</h2>
-          <button id="toggle-input-mode" type="button">Raw JSON</button>
-        </div>
+      <main id="content-pane" class="layout">
+        <section class="page-title view-section" data-views="events overview signals sources market-data universe calibration file-drop json developer storage">
+          <div>
+            <h2 id="page-heading">Events</h2>
+            <p id="page-subtitle">Live event intelligence, signal state, source evidence and calibration readiness.</p>
+          </div>
+          <div class="page-actions">
+            <button id="refresh-event-list" class="btn active" type="button">Refresh</button>
+            <button id="run-automation-now" class="btn" type="button">Run Automation</button>
+            <span id="automation-run-status" class="status-pill muted">Automation: idle</span>
+          </div>
+        </section>
 
-        <div class="fixture-row">
-          <label for="fixture-selector">Scenario</label>
-          <select id="fixture-selector"></select>
-          <button id="load-fixture" type="button">Load Fixture</button>
-        </div>
+        <section class="summary-cards view-section" data-views="events overview signals sources market-data calibration storage">
+          <div class="card stat-card">
+            <div class="card-title"><span class="dot emerald"></span>Event State</div>
+            <div id="event-summary" class="metric-grid compact"></div>
+            <span id="request-id" class="meta-text">No request</span>
+          </div>
+          <div class="card stat-card">
+            <div class="card-title"><span class="dot amber"></span>Pipeline</div>
+            <div id="pipeline" class="pipeline"></div>
+          </div>
+        </section>
 
-        <form id="news-form">
-          <div id="structured-input" class="form-grid">
-            <label>
-              Headline
-              <input id="headline" name="headline" required>
-            </label>
-            <label>
-              Article body or summary
-              <textarea id="body" name="body" rows="5"></textarea>
-            </label>
-            <label>
-              Source name
-              <input id="source-name" name="source_name" value="Example Newswire">
-            </label>
-            <label>
-              Source type
-              <input id="source-type" name="source_type" value="newswire">
-            </label>
-            <label>
-              Source URL
-              <input id="source-url" name="source_url" type="url">
-            </label>
-            <label>
-              Published timestamp
-              <input id="published-at" name="published_at" type="datetime-local">
-            </label>
-            <label>
-              Optional known ticker
-              <input id="known-ticker" name="known_ticker">
-            </label>
-            <label>
-              Optional country
-              <input id="country" name="country">
-            </label>
-            <label>
-              Optional market
-              <input id="market" name="market">
-            </label>
+        <section class="card input-panel view-section" data-views="overview developer" aria-labelledby="news-input-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="news-input-heading">News Input</h2>
+              <p>Fixture and manual analysis controls.</p>
+            </div>
+            <button id="toggle-input-mode" class="btn" type="button">Raw JSON</button>
           </div>
 
-          <div id="json-input-wrap" class="hidden">
-            <label for="raw-json">Raw JSON input</label>
-            <textarea id="raw-json" rows="16" spellcheck="false"></textarea>
+          <div class="fixture-row">
+            <label for="fixture-selector">Scenario</label>
+            <select id="fixture-selector"></select>
+            <button id="load-fixture" class="btn" type="button">Load Fixture</button>
           </div>
 
-          <div class="button-row">
-            <button id="submit-news" type="submit">Analyse</button>
-            <button id="clear-form" type="button">Clear</button>
+          <form id="news-form">
+            <div id="structured-input" class="form-grid">
+              <label>
+                Headline
+                <input id="headline" name="headline" required>
+              </label>
+              <label>
+                Article body or summary
+                <textarea id="body" name="body" rows="5"></textarea>
+              </label>
+              <label>
+                Source name
+                <input id="source-name" name="source_name" value="Example Newswire">
+              </label>
+              <label>
+                Source type
+                <input id="source-type" name="source_type" value="newswire">
+              </label>
+              <label>
+                Source URL
+                <input id="source-url" name="source_url" type="url">
+              </label>
+              <label>
+                Published timestamp
+                <input id="published-at" name="published_at" type="datetime-local">
+              </label>
+              <label>
+                Optional known ticker
+                <input id="known-ticker" name="known_ticker">
+              </label>
+              <label>
+                Optional country
+                <input id="country" name="country">
+              </label>
+              <label>
+                Optional market
+                <input id="market" name="market">
+              </label>
+            </div>
+
+            <div id="json-input-wrap" class="hidden">
+              <label for="raw-json">Raw JSON input</label>
+              <textarea id="raw-json" rows="16" spellcheck="false"></textarea>
+            </div>
+
+            <div class="button-row">
+              <button id="submit-news" class="btn active" type="submit">Analyse</button>
+              <button id="clear-form" class="btn" type="button">Clear</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="card events-workspace-panel view-section" data-views="events" aria-labelledby="events-workspace-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="events-workspace-heading">Event Queue</h2>
+              <p>Click a row to load full event intelligence in the right panel.</p>
+            </div>
           </div>
-        </form>
-      </section>
+          <div class="events-workspace">
+            <div class="events-list">
+              <div class="table-wrap events-table-wrap">
+                <table class="screener">
+                  <thead>
+                    <tr>
+                      <th>Event ID</th>
+                      <th>Date</th>
+                      <th>Time</th>
+                      <th>Headline</th>
+                      <th>Type</th>
+                      <th>Symbol</th>
+                      <th>Sentiment</th>
+                      <th>Impact</th>
+                      <th>Confidence</th>
+                      <th>Quality</th>
+                    </tr>
+                  </thead>
+                  <tbody id="event-list"></tbody>
+                </table>
+              </div>
+            </div>
 
-      <section class="panel summary-panel view-section" data-views="overview signals" aria-labelledby="event-summary-heading">
-        <div class="section-heading">
-          <h2 id="event-summary-heading">Event Summary</h2>
-          <span id="request-id" class="meta-text">No request</span>
-        </div>
-        <div id="event-summary" class="metric-grid"></div>
-        <div id="pipeline" class="pipeline"></div>
-      </section>
+            <aside class="event-detail-panel" aria-labelledby="event-detail-heading">
+              <div class="section-heading">
+                <div>
+                  <h3 id="event-detail-heading">Selected Event</h3>
+                  <span id="event-detail-meta" class="meta-text">Select an event</span>
+                </div>
+              </div>
+              <div class="ii-tabs" role="tablist" aria-label="Event detail sections">
+                <button class="ii-tab active" data-event-detail-tab="signal" type="button">Signal</button>
+                <button class="ii-tab" data-event-detail-tab="impacts" type="button">Impacts</button>
+                <button class="ii-tab" data-event-detail-tab="evidence" type="button">Evidence</button>
+                <button class="ii-tab" data-event-detail-tab="cluster" type="button">Cluster</button>
+                <button class="ii-tab" data-event-detail-tab="json" type="button">JSON</button>
+              </div>
+              <div id="event-detail-summary" class="metric-grid compact"></div>
+              <section class="event-detail-section" data-event-detail-panel="signal">
+                <div id="event-detail-signal"></div>
+              </section>
+              <section class="event-detail-section hidden" data-event-detail-panel="impacts">
+                <div id="event-detail-impacts"></div>
+              </section>
+              <section class="event-detail-section hidden" data-event-detail-panel="evidence">
+                <div id="event-detail-evidence"></div>
+              </section>
+              <section class="event-detail-section hidden" data-event-detail-panel="cluster">
+                <div id="event-detail-cluster"></div>
+              </section>
+              <section class="event-detail-section hidden" data-event-detail-panel="json">
+                <pre id="event-detail-json"></pre>
+              </section>
+            </aside>
+          </div>
+        </section>
 
-      <section class="panel recent-panel view-section" data-views="overview" aria-labelledby="recent-events-heading">
-        <div class="section-heading">
-          <h2 id="recent-events-heading">Recent Events</h2>
-          <button id="refresh-recent" type="button">Refresh</button>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Processed</th>
-                <th>Type</th>
-                <th>Symbol</th>
-                <th>Headline</th>
-                <th>Direction</th>
-                <th>Confidence</th>
-                <th>Source</th>
-                <th>Cluster</th>
-              </tr>
-            </thead>
-            <tbody id="recent-events"></tbody>
-          </table>
-        </div>
-      </section>
+        <section class="card recent-panel view-section" data-views="overview" aria-labelledby="recent-events-heading">
+          <div class="section-heading">
+            <h2 id="recent-events-heading">Recent Events</h2>
+            <button id="refresh-recent" class="btn" type="button">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table class="mini">
+              <thead>
+                <tr>
+                  <th>Processed</th>
+                  <th>Type</th>
+                  <th>Symbol</th>
+                  <th>Headline</th>
+                  <th>Direction</th>
+                  <th>Confidence</th>
+                  <th>Source</th>
+                  <th>Cluster</th>
+                </tr>
+              </thead>
+              <tbody id="recent-events"></tbody>
+            </table>
+          </div>
+        </section>
 
-      <section class="panel events-workspace-panel view-section" data-views="events" aria-labelledby="events-workspace-heading">
-        <div class="section-heading">
-          <h2 id="events-workspace-heading">Events</h2>
-          <button id="refresh-event-list" type="button">Refresh</button>
-        </div>
-        <div class="events-workspace">
-          <div class="events-list">
+        <section class="card impacts-panel view-section" data-views="signals" aria-labelledby="instrument-impacts-heading">
+          <div class="section-heading">
+            <h2 id="instrument-impacts-heading">Instrument Impacts</h2>
+            <label class="inline-control">
+              Sort
+              <select id="impact-sort">
+                <option value="symbol">Symbol</option>
+                <option value="directional_strength">Directional strength</option>
+                <option value="relevance">Relevance</option>
+                <option value="confidence">Confidence</option>
+              </select>
+            </label>
+          </div>
+          <div class="table-wrap">
+            <table class="screener">
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Entity type</th>
+                  <th>Relationship</th>
+                  <th>Scope</th>
+                  <th>Direction</th>
+                  <th>Strength</th>
+                  <th>Relevance</th>
+                  <th>Confidence</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody id="impact-table"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card automation-panel view-section" data-views="overview sources" aria-labelledby="automation-heading">
+          <div class="section-heading">
+            <h2 id="automation-heading">Automation</h2>
+            <div class="source-actions">
+              <button id="refresh-automation" class="btn" type="button">Refresh</button>
+            </div>
+          </div>
+          <div id="automation-status"></div>
+        </section>
+
+        <section class="card market-data-panel view-section view-hidden" data-views="market-data" aria-labelledby="market-data-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="market-data-heading">Market Data</h2>
+              <p>Cached EODHD bars and request audit records for calibration.</p>
+            </div>
+            <button id="refresh-market-data" class="btn" type="button">Refresh</button>
+          </div>
+          <div class="market-data-grid">
+            <div>
+              <div class="card-title"><span class="dot indigo"></span>Recent Bars</div>
+              <div class="table-wrap">
+                <table class="mini">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Symbol</th>
+                      <th>Exchange</th>
+                      <th>Interval</th>
+                      <th>Open</th>
+                      <th>High</th>
+                      <th>Low</th>
+                      <th>Close</th>
+                      <th>Volume</th>
+                    </tr>
+                  </thead>
+                  <tbody id="market-bars"></tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <div class="card-title"><span class="dot amber"></span>Request Audit</div>
+              <div class="table-wrap">
+                <table class="mini">
+                  <thead>
+                    <tr>
+                      <th>Requested</th>
+                      <th>Symbol</th>
+                      <th>Interval</th>
+                      <th>Status</th>
+                      <th>Returned</th>
+                      <th>Stored</th>
+                      <th>Call Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody id="market-requests"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card universe-panel view-section view-hidden" data-views="universe" aria-labelledby="universe-heading">
+          <div class="section-heading">
+            <h2 id="universe-heading">Favourites Universe</h2>
+            <button id="refresh-universe" class="btn" type="button">Refresh</button>
+          </div>
+          <div id="universe-summary" class="metric-grid"></div>
+          <div class="table-wrap">
+            <table class="screener">
+              <thead>
+                <tr>
+                  <th>Symbol</th>
+                  <th>Name</th>
+                  <th>Type</th>
+                  <th>Exchange</th>
+                  <th>Currency</th>
+                  <th>Theme</th>
+                  <th>Sub-theme</th>
+                  <th>Overlap</th>
+                  <th>Benchmark</th>
+                </tr>
+              </thead>
+              <tbody id="universe-table"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card calibration-panel view-section view-hidden" data-views="calibration" aria-labelledby="calibration-heading">
+          <div class="section-heading">
+            <h2 id="calibration-heading">Historical Calibration</h2>
+            <button id="refresh-calibration" class="btn" type="button">Refresh</button>
+          </div>
+          <div id="calibration-summary" class="metric-grid"></div>
+          <div id="calibration-report"></div>
+        </section>
+
+        <section class="card file-drop-panel view-section view-hidden" data-views="file-drop" aria-labelledby="file-drop-heading">
+          <div class="section-heading">
+            <h2 id="file-drop-heading">File Drop</h2>
+            <div class="source-actions">
+              <button id="refresh-file-drop" class="btn" type="button">Refresh</button>
+              <button id="export-latest-file-drop" class="btn" type="button">Export Latest Signals</button>
+            </div>
+          </div>
+          <div id="file-drop-status" class="metric-grid"></div>
+          <pre id="file-drop-result"></pre>
+        </section>
+
+        <section class="card storage-panel view-section view-hidden" data-views="storage" aria-labelledby="storage-heading">
+          <div class="section-heading">
+            <h2 id="storage-heading">Storage / Retention</h2>
+            <div class="source-actions">
+              <span id="retention-apply-status" class="status-pill muted">Retention: idle</span>
+              <button id="dry-run-retention" class="btn" type="button">Dry Run</button>
+              <button id="apply-retention-policy" class="btn" type="button">Apply Retention Policy</button>
+              <button id="refresh-storage" class="btn" type="button">Refresh</button>
+            </div>
+          </div>
+          <div id="storage-summary" class="metric-grid"></div>
+          <div id="storage-visualisation" class="storage-bars" aria-live="polite"></div>
+          <div id="retention-preview"></div>
+          <div class="table-wrap">
+            <table class="screener">
+              <thead>
+                <tr>
+                  <th>Layer Name</th>
+                  <th>What it is</th>
+                  <th>Current Storage</th>
+                  <th>Days Worth</th>
+                  <th>Tickers</th>
+                  <th>Retention</th>
+                  <th>Projected Storage</th>
+                </tr>
+              </thead>
+              <tbody id="storage-layers"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card detail-panel view-section" data-views="signals sources json developer" aria-labelledby="detail-tabs-heading">
+          <div class="tabs" role="tablist" aria-labelledby="detail-tabs-heading">
+            <h2 id="detail-tabs-heading" class="visually-hidden">Detail panels</h2>
+            <button class="tab active" data-panel="signal" type="button">Signal</button>
+            <button class="tab" data-panel="evidence" type="button">Evidence</button>
+            <button class="tab" data-panel="cluster" type="button">Cluster</button>
+            <button class="tab" data-panel="json" type="button">JSON</button>
+            <button class="tab" data-panel="sources" type="button">Sources</button>
+            <button class="tab" data-panel="developer" type="button">Test</button>
+          </div>
+
+          <div id="error-panel" class="error-panel hidden"></div>
+          <div id="panel-signal" class="tab-panel"></div>
+          <div id="panel-evidence" class="tab-panel hidden"></div>
+          <div id="panel-cluster" class="tab-panel hidden"></div>
+          <div id="panel-json" class="tab-panel hidden">
+            <div class="json-toolbar">
+              <select id="json-selector"></select>
+              <button id="copy-json" class="btn" type="button">Copy JSON</button>
+              <button id="download-json" class="btn" type="button">Download JSON</button>
+            </div>
+            <pre id="json-viewer" tabindex="0"></pre>
+          </div>
+          <div id="panel-sources" class="tab-panel hidden">
+            <div class="section-heading">
+              <h3>Source Connectors</h3>
+              <div class="source-actions">
+                <span id="sec-edgar-poll-status" class="status-pill muted">SEC: idle</span>
+                <button id="poll-sec-edgar" class="btn" type="button">Poll SEC EDGAR 8-Ks</button>
+              </div>
+            </div>
+            <div id="source-status"></div>
+            <div class="section-heading">
+              <h3>Ingested Filings</h3>
+              <button id="refresh-source-filings" class="btn" type="button">Refresh Filings</button>
+            </div>
             <div class="table-wrap">
-              <table>
+              <table class="screener">
                 <thead>
                   <tr>
-                    <th>Event ID</th>
-                    <th>Date</th>
-                    <th>Time</th>
-                    <th>Headline</th>
-                    <th>Type</th>
-                    <th>Symbol</th>
-                    <th>Market Bias</th>
-                    <th>Impact</th>
-                    <th>Confidence</th>
-                    <th>Quality</th>
+                    <th>Filing time</th>
+                    <th>Ticker</th>
+                    <th>Form</th>
+                    <th>Company</th>
+                    <th>Accession</th>
+                    <th>Sections</th>
+                    <th>Event</th>
                   </tr>
                 </thead>
-                <tbody id="event-list"></tbody>
+                <tbody id="source-filings"></tbody>
               </table>
             </div>
           </div>
-          <aside class="event-detail-panel" aria-labelledby="event-detail-heading">
+          <div id="panel-developer" class="tab-panel hidden">
+            <div class="metric-grid">
+              <div class="metric">
+                <span>Active test run</span>
+                <strong id="active-test-run-id">none</strong>
+              </div>
+            </div>
+            <div class="developer-grid">
+              <button id="health-check" class="btn" type="button">API Health Check</button>
+              <button id="start-test-run" class="btn" type="button">Start New Test Run</button>
+              <button id="delete-current-test-run" class="btn" type="button">Delete Current Test Run</button>
+              <button id="reset-development-data" class="btn" type="button">Reset Development Data</button>
+              <button id="clear-state" class="btn" type="button">Clear Local State</button>
+              <button id="reload-fixtures" class="btn" type="button">Reload Fixtures</button>
+              <button id="simulate-failure" class="btn" type="button">Simulate Backend Failure</button>
+              <button id="copy-event-id" class="btn" type="button">Copy Event ID</button>
+              <button id="copy-cluster-id" class="btn" type="button">Copy Cluster ID</button>
+            </div>
             <div class="section-heading">
-              <h3 id="event-detail-heading">Event Detail</h3>
-              <span id="event-detail-meta" class="meta-text">Select an event</span>
+              <h3>Historical Test Runs</h3>
+              <button id="refresh-test-runs" class="btn" type="button">Refresh Test Runs</button>
             </div>
-            <div id="event-detail-summary" class="metric-grid"></div>
-            <section class="event-detail-section">
-              <h4>Signal</h4>
-              <div id="event-detail-signal"></div>
-            </section>
-            <section class="event-detail-section">
-              <h4>Instrument Impacts</h4>
-              <div id="event-detail-impacts"></div>
-            </section>
-            <section class="event-detail-section">
-              <h4>Evidence</h4>
-              <div id="event-detail-evidence"></div>
-            </section>
-            <section class="event-detail-section">
-              <h4>Cluster</h4>
-              <div id="event-detail-cluster"></div>
-            </section>
-            <section class="event-detail-section">
-              <h4>JSON</h4>
-              <pre id="event-detail-json"></pre>
-            </section>
-          </aside>
-        </div>
-      </section>
-
-      <section class="panel impacts-panel view-section" data-views="signals" aria-labelledby="instrument-impacts-heading">
-        <div class="section-heading">
-          <h2 id="instrument-impacts-heading">Instrument Impacts</h2>
-          <label class="inline-control">
-            Sort
-            <select id="impact-sort">
-              <option value="symbol">Symbol</option>
-              <option value="directional_strength">Directional strength</option>
-              <option value="relevance">Relevance</option>
-              <option value="confidence">Confidence</option>
-            </select>
-          </label>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Symbol</th>
-                <th>Entity type</th>
-                <th>Relationship</th>
-                <th>Scope</th>
-                <th>Direction</th>
-                <th>Strength</th>
-                <th>Relevance</th>
-                <th>Confidence</th>
-                <th>Reason</th>
-              </tr>
-            </thead>
-            <tbody id="impact-table"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="panel automation-panel view-section" data-views="overview sources" aria-labelledby="automation-heading">
-        <div class="section-heading">
-          <h2 id="automation-heading">Automation</h2>
-          <div class="source-actions">
-            <span id="automation-run-status" class="status-pill muted">Automation: idle</span>
-            <button id="run-automation-now" type="button">Run Automation Now</button>
-            <button id="refresh-automation" type="button">Refresh</button>
-          </div>
-        </div>
-        <div id="automation-status"></div>
-      </section>
-
-      <section class="panel universe-panel view-section view-hidden" data-views="universe" aria-labelledby="universe-heading">
-        <div class="section-heading">
-          <h2 id="universe-heading">Favourites Universe</h2>
-          <button id="refresh-universe" type="button">Refresh</button>
-        </div>
-        <div id="universe-summary" class="metric-grid"></div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Symbol</th>
-                <th>Name</th>
-                <th>Type</th>
-                <th>Exchange</th>
-                <th>Currency</th>
-                <th>Theme</th>
-                <th>Sub-theme</th>
-                <th>Overlap</th>
-                <th>Benchmark</th>
-              </tr>
-            </thead>
-            <tbody id="universe-table"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="panel calibration-panel view-section view-hidden" data-views="calibration" aria-labelledby="calibration-heading">
-        <div class="section-heading">
-          <h2 id="calibration-heading">Historical Calibration</h2>
-          <button id="refresh-calibration" type="button">Refresh</button>
-        </div>
-        <div id="calibration-summary" class="metric-grid"></div>
-        <div id="calibration-report"></div>
-      </section>
-
-      <section class="panel file-drop-panel view-section view-hidden" data-views="file-drop" aria-labelledby="file-drop-heading">
-        <div class="section-heading">
-          <h2 id="file-drop-heading">File Drop</h2>
-          <div class="source-actions">
-            <button id="refresh-file-drop" type="button">Refresh</button>
-            <button id="export-latest-file-drop" type="button">Export Latest Signals</button>
-          </div>
-        </div>
-        <div id="file-drop-status" class="metric-grid"></div>
-        <pre id="file-drop-result"></pre>
-      </section>
-
-      <section class="panel storage-panel view-section view-hidden" data-views="storage" aria-labelledby="storage-heading">
-        <div class="section-heading">
-          <h2 id="storage-heading">Storage / Retention</h2>
-          <div class="source-actions">
-            <span id="retention-apply-status" class="status-pill muted">Retention: idle</span>
-            <button id="dry-run-retention" type="button">Dry Run</button>
-            <button id="apply-retention-policy" type="button">Apply Retention Policy</button>
-            <button id="refresh-storage" type="button">Refresh</button>
-          </div>
-        </div>
-        <div id="storage-summary" class="metric-grid"></div>
-        <div id="storage-visualisation" class="storage-bars" aria-live="polite"></div>
-        <div id="retention-preview"></div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Layer Name</th>
-                <th>What it is</th>
-                <th>Current Storage</th>
-                <th>Days Worth</th>
-                <th>Tickers</th>
-                <th>Retention</th>
-                <th>Projected Storage</th>
-              </tr>
-            </thead>
-            <tbody id="storage-layers"></tbody>
-          </table>
-        </div>
-      </section>
-
-      <section class="panel detail-panel view-section" data-views="signals sources json developer" aria-labelledby="detail-tabs-heading">
-        <div class="tabs" role="tablist" aria-labelledby="detail-tabs-heading">
-          <h2 id="detail-tabs-heading" class="visually-hidden">Detail panels</h2>
-          <button class="tab active" data-panel="signal" type="button">Signal</button>
-          <button class="tab" data-panel="evidence" type="button">Evidence</button>
-          <button class="tab" data-panel="cluster" type="button">Cluster</button>
-          <button class="tab" data-panel="json" type="button">JSON</button>
-          <button class="tab" data-panel="sources" type="button">Sources</button>
-          <button class="tab" data-panel="developer" type="button">Test</button>
-        </div>
-
-        <div id="error-panel" class="error-panel hidden"></div>
-        <div id="panel-signal" class="tab-panel"></div>
-        <div id="panel-evidence" class="tab-panel hidden"></div>
-        <div id="panel-cluster" class="tab-panel hidden"></div>
-        <div id="panel-json" class="tab-panel hidden">
-          <div class="json-toolbar">
-            <select id="json-selector"></select>
-            <button id="copy-json" type="button">Copy JSON</button>
-            <button id="download-json" type="button">Download JSON</button>
-          </div>
-          <pre id="json-viewer" tabindex="0"></pre>
-        </div>
-        <div id="panel-sources" class="tab-panel hidden">
-          <div class="section-heading">
-            <h3>Source Connectors</h3>
-            <div class="source-actions">
-              <span id="sec-edgar-poll-status" class="status-pill muted">SEC: idle</span>
-              <button id="poll-sec-edgar" type="button">Poll SEC EDGAR 8-Ks</button>
+            <div class="table-wrap">
+              <table class="screener">
+                <thead>
+                  <tr>
+                    <th>Test run</th>
+                    <th>Environment</th>
+                    <th>Clusters</th>
+                    <th>Articles</th>
+                    <th>Latest article</th>
+                  </tr>
+                </thead>
+                <tbody id="historical-test-runs"></tbody>
+              </table>
             </div>
+            <details>
+              <summary>Raw request</summary>
+              <pre id="raw-request"></pre>
+            </details>
+            <details>
+              <summary>Raw response</summary>
+              <pre id="raw-response"></pre>
+            </details>
           </div>
-          <div id="source-status"></div>
-          <div class="section-heading">
-            <h3>Ingested Filings</h3>
-            <button id="refresh-source-filings" type="button">Refresh Filings</button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Filing time</th>
-                  <th>Ticker</th>
-                  <th>Form</th>
-                  <th>Company</th>
-                  <th>Accession</th>
-                  <th>Sections</th>
-                  <th>Event</th>
-                </tr>
-              </thead>
-              <tbody id="source-filings"></tbody>
-            </table>
-          </div>
-        </div>
-        <div id="panel-developer" class="tab-panel hidden">
-          <div class="metric-grid">
-            <div class="metric">
-              <span>Active test run</span>
-              <strong id="active-test-run-id">none</strong>
-            </div>
-          </div>
-          <div class="developer-grid">
-            <button id="health-check" type="button">API Health Check</button>
-            <button id="start-test-run" type="button">Start New Test Run</button>
-            <button id="delete-current-test-run" type="button">Delete Current Test Run</button>
-            <button id="reset-development-data" type="button">Reset Development Data</button>
-            <button id="clear-state" type="button">Clear Local State</button>
-            <button id="reload-fixtures" type="button">Reload Fixtures</button>
-            <button id="simulate-failure" type="button">Simulate Backend Failure</button>
-            <button id="copy-event-id" type="button">Copy Event ID</button>
-            <button id="copy-cluster-id" type="button">Copy Cluster ID</button>
-          </div>
-          <div class="section-heading">
-            <h3>Historical Test Runs</h3>
-            <button id="refresh-test-runs" type="button">Refresh Test Runs</button>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Test run</th>
-                  <th>Environment</th>
-                  <th>Clusters</th>
-                  <th>Articles</th>
-                  <th>Latest article</th>
-                </tr>
-              </thead>
-              <tbody id="historical-test-runs"></tbody>
-            </table>
-          </div>
-          <details>
-            <summary>Raw request</summary>
-            <pre id="raw-request"></pre>
-          </details>
-          <details>
-            <summary>Raw response</summary>
-            <pre id="raw-response"></pre>
-          </details>
-        </div>
-      </section>
+        </section>
       </main>
     </div>
 

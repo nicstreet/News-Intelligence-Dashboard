@@ -139,11 +139,18 @@
     }
     const metrics = signal.signal || {};
     const decision = signal.decision || {};
-    return `<div class="signal-grid">
+    const direction = upper(metrics.direction || "neutral");
+    return `<div class="signal-hero">
+      <div>
+        <div class="kv-label">News signal score</div>
+        <div class="big-score direction-${direction}">${number(metrics.signal_score, 1)}</div>
+      </div>
+      <div class="action-pill action-${direction}">${direction}</div>
+    </div>
+    <div class="signal-grid">
       ${metric("Instrument", signal.instrument ? signal.instrument.symbol : "n/a")}
-      ${metric("Signal score", number(metrics.signal_score, 1))}
       ${metric("Score band", upper(metrics.strength || "neutral"))}
-      ${metric("Direction", upper(metrics.direction), `direction-${upper(metrics.direction)}`)}
+      ${metric("Direction", direction, `direction-${direction}`)}
       ${metric("Strength", number(metrics.directional_strength, 2))}
       ${metric("Confidence", number(metrics.confidence, 2))}
       ${metric("Quality", number(metrics.quality, 2))}
@@ -314,6 +321,37 @@
         <td>${number(analysis.confidence, 2)}</td>
         <td>${number(analysis.quality, 2)}</td>
       </tr>`;
+    }).join("");
+  }
+
+  function renderSidebarWatch(events) {
+    if (!events || events.length === 0) {
+      return `<div class="tick-row">
+        <span class="row-left">
+          <span class="row-icon" data-fallback="--"></span>
+          <span class="row-main">
+            <span class="row-title">No recent events</span>
+            <span class="row-sub">Refresh or run source polling</span>
+          </span>
+        </span>
+        <span class="row-metric">0</span>
+      </div>`;
+    }
+    return events.slice(0, 5).map((event) => {
+      const analysis = event.analysis || {};
+      const direction = String(analysis.direction || "neutral").toLowerCase();
+      const className = direction === "bullish" ? "up" : direction === "bearish" ? "down" : "neutral";
+      const fallback = direction === "bullish" ? "+" : direction === "bearish" ? "-" : "=";
+      return `<div class="tick-row" data-event-id="${escapeHtml(event.event_id)}">
+        <span class="row-left">
+          <span class="row-icon ${className}" data-fallback="${escapeHtml(fallback)}"></span>
+          <span class="row-main">
+            <span class="row-title">${escapeHtml(event.primary_symbol || event.event_type || "Market event")}</span>
+            <span class="row-sub">${escapeHtml(event.headline || "No headline")}</span>
+          </span>
+        </span>
+        <span class="row-metric ${className}">${number(analysis.directional_strength, 2)}</span>
+      </div>`;
     }).join("");
   }
 
@@ -527,6 +565,38 @@
     ].join("");
   }
 
+  function renderMarketBars(bars) {
+    if (!bars || bars.length === 0) {
+      return `<tr><td colspan="9">No cached market bars available.</td></tr>`;
+    }
+    return bars.map((bar) => `<tr>
+      <td>${escapeHtml(bar.timestamp_utc || "n/a")}</td>
+      <td>${escapeHtml(bar.symbol || "n/a")}</td>
+      <td>${escapeHtml(bar.exchange || "n/a")}</td>
+      <td>${escapeHtml(bar.interval || "n/a")}</td>
+      <td>${number(bar.open, 2)}</td>
+      <td>${number(bar.high, 2)}</td>
+      <td>${number(bar.low, 2)}</td>
+      <td>${number(bar.close, 2)}</td>
+      <td>${number(bar.volume, 0)}</td>
+    </tr>`).join("");
+  }
+
+  function renderMarketRequests(requests) {
+    if (!requests || requests.length === 0) {
+      return `<tr><td colspan="7">No market-data requests recorded.</td></tr>`;
+    }
+    return requests.map((request) => `<tr>
+      <td>${escapeHtml(request.requested_at || "n/a")}</td>
+      <td>${escapeHtml(request.symbol || "n/a")}</td>
+      <td>${escapeHtml(request.interval || "n/a")}</td>
+      <td>${escapeHtml(request.status || "n/a")}</td>
+      <td>${escapeHtml(request.records_returned || 0)}</td>
+      <td>${escapeHtml(request.records_stored || 0)}</td>
+      <td>${escapeHtml(request.estimated_api_call_cost || 0)}</td>
+    </tr>`).join("");
+  }
+
   function renderStorageSummary(storage, retention) {
     if (!storage) {
       return metric("Status", "No storage summary loaded");
@@ -699,6 +769,7 @@
     renderSourceFilings,
     renderRecent,
     renderEventRows,
+    renderSidebarWatch,
     renderTestRuns,
     renderAutomation,
     renderUniverseSummary,
@@ -706,6 +777,8 @@
     renderCalibrationSummary,
     renderCalibrationReport,
     renderFileDropStatus,
+    renderMarketBars,
+    renderMarketRequests,
     renderStorageSummary,
     renderStorageVisualisation,
     renderStorageLayers,

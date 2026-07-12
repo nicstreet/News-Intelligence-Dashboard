@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Asterius News Intelligence UI Mock-up</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --panel-top: #111827;
+      --panel-bot: #0f1422;
+      --deep: #080c14;
+      --border: rgba(30, 41, 59, 0.9);
+      --border-soft: rgba(30, 41, 59, 0.6);
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --dim: #64748b;
+      --faint: #475569;
+      --cyan: #22d3ee;
+      --emerald: #34d399;
+      --red: #f87171;
+      --amber: #fbbf24;
+      --indigo: #818cf8;
+      --purple: #c084fc;
+      --radius: 20px;
+      --radius-sm: 12px;
+      --mono: "Cascadia Mono", Consolas, "SF Mono", Menlo, monospace;
+      --sans: "Segoe UI Variable Display", "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font: 14px/1.45 var(--sans);
+      overflow: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--deep); }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 6px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      height: 62px;
+      background: rgba(15, 21, 36, 0.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 310px;
+    }
+
+    .brand-mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid rgba(34, 211, 238, 0.45);
+      background: rgba(34, 211, 238, 0.1);
+      color: var(--cyan);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-family: var(--mono);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .pill {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .pill.live {
+      color: var(--emerald);
+      border-color: rgba(52, 211, 153, 0.35);
+      background: rgba(52, 211, 153, 0.08);
+    }
+
+    .pill.warn {
+      color: var(--amber);
+      border-color: rgba(251, 191, 36, 0.35);
+      background: rgba(251, 191, 36, 0.08);
+    }
+
+    .icon-btn,
+    .btn {
+      background: var(--deep);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      transition: all 0.15s;
+    }
+
+    .icon-btn {
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      font-family: var(--mono);
+    }
+
+    .btn {
+      padding: 8px 14px;
+    }
+
+    .icon-btn:hover,
+    .btn:hover,
+    .btn.active {
+      border-color: rgba(34, 211, 238, 0.5);
+      color: var(--cyan);
+      background: rgba(34, 211, 238, 0.08);
+    }
+
+    .app-shell {
+      display: flex;
+      align-items: stretch;
+      height: calc(100vh - 62px);
+    }
+
+    #nav-pane {
+      width: 340px;
+      flex-shrink: 0;
+      background: var(--panel-bot);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .nav-header,
+    .nav-footer {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-soft);
+    }
+
+    .nav-footer {
+      border-top: 1px solid var(--border-soft);
+      border-bottom: 0;
+    }
+
+    .search {
+      width: 100%;
+      background: var(--deep);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      padding: 9px 12px;
+      outline: none;
+    }
+
+    .search:focus { border-color: rgba(34, 211, 238, 0.5); }
+
+    .nav-scroll {
+      overflow-y: auto;
+      padding: 14px 10px 18px;
+    }
+
+    .nav-group {
+      margin: 0 0 16px;
+    }
+
+    .nav-label,
+    .card-title,
+    th,
+    .kv-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--dim);
+    }
+
+    .nav-label {
+      padding: 0 10px 8px;
+      font-size: 9.5px;
+    }
+
+    .tool-row,
+    .tick-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: background 0.12s;
+      padding: 9px 10px;
+      color: var(--muted);
+    }
+
+    .tool-row:hover,
+    .tick-row:hover { background: rgba(148, 163, 184, 0.07); }
+
+    .tool-row.active {
+      background: rgba(34, 211, 238, 0.1);
+      color: var(--cyan);
+    }
+
+    .row-left {
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .row-icon {
+      width: 20px;
+      color: var(--faint);
+      text-align: center;
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    .tool-row.active .row-icon { color: var(--cyan); }
+
+    .row-main {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .row-title {
+      font-size: 12.5px;
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .row-sub {
+      color: var(--dim);
+      font-size: 10.5px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .row-metric {
+      font: 700 11px var(--mono);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .up { color: var(--emerald); }
+    .down { color: var(--red); }
+    .neutral { color: var(--muted); }
+
+    main#content-pane {
+      flex: 1;
+      min-width: 0;
+      overflow-y: auto;
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 22px 24px 60px;
+    }
+
+    .page-title {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .page-title h2 {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+
+    .page-title p {
+      margin: 3px 0 0;
+      color: var(--dim);
+      font-size: 12px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, var(--panel-top), var(--panel-bot));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .col-3 { grid-column: span 3; }
+    .col-4 { grid-column: span 4; }
+    .col-5 { grid-column: span 5; }
+    .col-7 { grid-column: span 7; }
+    .col-8 { grid-column: span 8; }
+    .col-12 { grid-column: span 12; }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 3px;
+      background: var(--cyan);
+    }
+
+    .dot.emerald { background: var(--emerald); }
+    .dot.amber { background: var(--amber); }
+    .dot.indigo { background: var(--indigo); }
+    .dot.purple { background: var(--purple); }
+
+    .metric-row {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .kv {
+      background: rgba(8, 12, 20, 0.52);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      padding: 10px 11px;
+      min-width: 0;
+    }
+
+    .kv-value {
+      margin-top: 4px;
+      color: var(--text);
+      font: 700 15px var(--mono);
+      font-variant-numeric: tabular-nums;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-soft);
+      background: rgba(8, 12, 20, 0.36);
+      max-height: 430px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 940px;
+    }
+
+    thead {
+      position: sticky;
+      top: 0;
+      background: var(--deep);
+      z-index: 1;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-soft);
+      white-space: nowrap;
+    }
+
+    td {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    td.mono {
+      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .event-id {
+      color: var(--cyan);
+      text-decoration: none;
+      font-family: var(--mono);
+      font-size: 11px;
+    }
+
+    tr.active-row {
+      background: rgba(34, 211, 238, 0.07);
+      outline: 1px solid rgba(34, 211, 238, 0.28);
+      outline-offset: -1px;
+    }
+
+    .ii-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .ii-tab {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border: 1px solid var(--border);
+      background: var(--deep);
+      color: var(--muted);
+      border-radius: 999px;
+      padding: 5px 9px;
+    }
+
+    .ii-tab.active {
+      color: var(--cyan);
+      border-color: rgba(34, 211, 238, 0.5);
+      background: rgba(34, 211, 238, 0.12);
+    }
+
+    .signal-score {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 12px 0 2px;
+    }
+
+    .big-score {
+      font: 900 42px var(--mono);
+      letter-spacing: -0.02em;
+      color: var(--emerald);
+      line-height: 1;
+    }
+
+    .action-pill {
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      padding: 6px 22px;
+      border-radius: 999px;
+      background: rgba(52, 211, 153, 0.15);
+      color: var(--emerald);
+      border: 1px solid rgba(52, 211, 153, 0.4);
+    }
+
+    .chip-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .chip {
+      font-size: 9.5px;
+      font-weight: 700;
+      font-family: var(--mono);
+      padding: 2.5px 8px;
+      border-radius: 999px;
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--muted);
+      border: 1px solid var(--border-soft);
+    }
+
+    .chip.up {
+      background: rgba(52, 211, 153, 0.1);
+      color: var(--emerald);
+      border-color: rgba(52, 211, 153, 0.25);
+    }
+
+    .chip.warn {
+      background: rgba(251, 191, 36, 0.1);
+      color: var(--amber);
+      border-color: rgba(251, 191, 36, 0.25);
+    }
+
+    .json-preview {
+      margin: 0;
+      background: var(--deep);
+      border: 1px solid var(--border-soft);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      color: var(--muted);
+      overflow: auto;
+      font: 11px/1.55 var(--mono);
+      max-height: 260px;
+    }
+
+    .mini-list {
+      display: grid;
+      gap: 9px;
+    }
+
+    .mini-item {
+      display: grid;
+      grid-template-columns: 110px 1fr auto;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 1px solid var(--border-soft);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .mini-item:last-child { border-bottom: 0; }
+
+    @media (max-width: 1100px) {
+      body { overflow: auto; }
+      .app-shell { height: auto; min-height: calc(100vh - 62px); }
+      #nav-pane { width: 280px; }
+      main#content-pane { padding: 18px; }
+      .grid { grid-template-columns: 1fr; }
+      .col-3, .col-4, .col-5, .col-7, .col-8, .col-12 { grid-column: span 1; }
+      .metric-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-mark">AI</div>
+      <div>
+        <h1>Asterius News Intelligence</h1>
+      </div>
+    </div>
+    <div class="header-controls">
+      <span class="pill live">Backend OK</span>
+      <span class="pill live">Live Runtime</span>
+      <span class="pill warn">EODHD cache idle</span>
+      <button class="icon-btn" type="button" aria-label="Alerts">!</button>
+      <button class="icon-btn" type="button" aria-label="Options">...</button>
+    </div>
+  </header>
+
+  <div class="app-shell">
+    <aside id="nav-pane">
+      <div class="nav-header">
+        <input class="search" value="" placeholder="Search events, symbols, sources">
+      </div>
+      <div class="nav-scroll">
+        <section class="nav-group">
+          <div class="nav-label">Views</div>
+          <div class="tool-row active">
+            <div class="row-left"><span class="row-icon">01</span><span class="row-title">Events</span></div>
+            <span class="row-metric">73</span>
+          </div>
+          <div class="tool-row">
+            <div class="row-left"><span class="row-icon">02</span><span class="row-title">Signals</span></div>
+            <span class="row-metric">404</span>
+          </div>
+          <div class="tool-row">
+            <div class="row-left"><span class="row-icon">03</span><span class="row-title">Sources</span></div>
+            <span class="row-metric up">OK</span>
+          </div>
+          <div class="tool-row">
+            <div class="row-left"><span class="row-icon">04</span><span class="row-title">Market Data</span></div>
+            <span class="row-metric neutral">0 bars</span>
+          </div>
+          <div class="tool-row">
+            <div class="row-left"><span class="row-icon">05</span><span class="row-title">Calibration</span></div>
+            <span class="row-metric">v0.4</span>
+          </div>
+          <div class="tool-row">
+            <div class="row-left"><span class="row-icon">06</span><span class="row-title">Storage</span></div>
+            <span class="row-metric">2.7 MB</span>
+          </div>
+        </section>
+
+        <section class="nav-group">
+          <div class="nav-label">Active Watch</div>
+          <div class="tick-row">
+            <div class="row-left">
+              <span class="row-icon up">+</span>
+              <span class="row-main">
+                <span class="row-title">NVDA guidance beat</span>
+                <span class="row-sub">earnings / semiconductor basket</span>
+              </span>
+            </div>
+            <span class="row-metric up">+67.4</span>
+          </div>
+          <div class="tick-row">
+            <div class="row-left">
+              <span class="row-icon down">-</span>
+              <span class="row-main">
+                <span class="row-title">US export restrictions</span>
+                <span class="row-sub">geopolitical / global market</span>
+              </span>
+            </div>
+            <span class="row-metric down">-42.1</span>
+          </div>
+          <div class="tick-row">
+            <div class="row-left">
+              <span class="row-icon">=</span>
+              <span class="row-main">
+                <span class="row-title">AAPL 8-K filing</span>
+                <span class="row-sub">SEC EDGAR / source lineage</span>
+              </span>
+            </div>
+            <span class="row-metric">0.0</span>
+          </div>
+        </section>
+      </div>
+      <div class="nav-footer">
+        <div class="chip-strip">
+          <span class="chip up">SEC OK</span>
+          <span class="chip">World News</span>
+          <span class="chip warn">Retention due</span>
+        </div>
+      </div>
+    </aside>
+
+    <main id="content-pane">
+      <div class="page-title">
+        <div>
+          <h2>Events</h2>
+          <p>Live event intelligence, signal state, source evidence and calibration readiness.</p>
+        </div>
+        <div class="header-controls">
+          <button class="btn active" type="button">Refresh</button>
+          <button class="btn" type="button">Start Test Run</button>
+          <button class="btn" type="button">Export JSON</button>
+        </div>
+      </div>
+
+      <section class="grid">
+        <div class="card col-3">
+          <div class="card-title"><span class="dot emerald"></span>Active Signals</div>
+          <div class="kv"><div class="kv-label">Triggerable</div><div class="kv-value up">18</div></div>
+          <div class="kv"><div class="kv-label">Veto Risk</div><div class="kv-value down">4</div></div>
+        </div>
+        <div class="card col-3">
+          <div class="card-title"><span class="dot amber"></span>Source Automation</div>
+          <div class="kv"><div class="kv-label">Due Sources</div><div class="kv-value">2</div></div>
+          <div class="kv"><div class="kv-label">Last SEC Poll</div><div class="kv-value">08:14</div></div>
+        </div>
+        <div class="card col-3">
+          <div class="card-title"><span class="dot indigo"></span>Market Data</div>
+          <div class="kv"><div class="kv-label">Daily Bars</div><div class="kv-value">0</div></div>
+          <div class="kv"><div class="kv-label">Intraday Bars</div><div class="kv-value">0</div></div>
+        </div>
+        <div class="card col-3">
+          <div class="card-title"><span class="dot purple"></span>Storage</div>
+          <div class="kv"><div class="kv-label">Current Payloads</div><div class="kv-value">2.7 MB</div></div>
+          <div class="kv"><div class="kv-label">Projected</div><div class="kv-value">101 MB</div></div>
+        </div>
+
+        <div class="card col-8">
+          <div class="card-title"><span class="dot"></span>Event Queue</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Event ID</th>
+                  <th>Date</th>
+                  <th>Time</th>
+                  <th>Headline</th>
+                  <th>Type</th>
+                  <th>Symbol</th>
+                  <th>Sentiment</th>
+                  <th>Impact</th>
+                  <th>Confidence</th>
+                  <th>Quality</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="active-row">
+                  <td><a class="event-id" href="#">evt_20260713_0184</a></td>
+                  <td class="mono">13/07/2026</td>
+                  <td class="mono">08:31:14</td>
+                  <td>NVIDIA raises revenue guidance after stronger AI accelerator demand</td>
+                  <td>earnings</td>
+                  <td class="mono">NVDA</td>
+                  <td class="up">Bullish</td>
+                  <td class="mono up">0.81</td>
+                  <td class="mono">0.86</td>
+                  <td class="mono">0.91</td>
+                </tr>
+                <tr>
+                  <td><a class="event-id" href="#">evt_20260713_0183</a></td>
+                  <td class="mono">13/07/2026</td>
+                  <td class="mono">07:48:02</td>
+                  <td>US confirms new semiconductor export-control consultation</td>
+                  <td>geopolitical</td>
+                  <td class="mono">N/A</td>
+                  <td class="down">Bearish</td>
+                  <td class="mono down">-0.46</td>
+                  <td class="mono">0.72</td>
+                  <td class="mono">0.88</td>
+                </tr>
+                <tr>
+                  <td><a class="event-id" href="#">evt_20260713_0182</a></td>
+                  <td class="mono">12/07/2026</td>
+                  <td class="mono">21:04:19</td>
+                  <td>Apple files Form 8-K with SEC EDGAR</td>
+                  <td>regulatory</td>
+                  <td class="mono">AAPL</td>
+                  <td class="neutral">Neutral</td>
+                  <td class="mono">0.00</td>
+                  <td class="mono">0.51</td>
+                  <td class="mono">0.82</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <aside class="card col-4">
+          <div class="card-title"><span class="dot emerald"></span>Selected Event</div>
+          <div class="ii-tabs">
+            <button class="ii-tab active" type="button">Signal</button>
+            <button class="ii-tab" type="button">Impacts</button>
+            <button class="ii-tab" type="button">Evidence</button>
+            <button class="ii-tab" type="button">Cluster</button>
+            <button class="ii-tab" type="button">JSON</button>
+          </div>
+          <div class="signal-score">
+            <div>
+              <div class="kv-label">News Signal Score</div>
+              <div class="big-score">+67.4</div>
+            </div>
+            <div class="action-pill">LONG</div>
+          </div>
+          <div class="metric-row">
+            <div class="kv"><div class="kv-label">Confidence</div><div class="kv-value">0.86</div></div>
+            <div class="kv"><div class="kv-label">Quality</div><div class="kv-value">0.91</div></div>
+            <div class="kv"><div class="kv-label">Freshness</div><div class="kv-value">0.97</div></div>
+            <div class="kv"><div class="kv-label">Horizon</div><div class="kv-value">3D</div></div>
+          </div>
+          <div class="chip-strip">
+            <span class="chip up">Catalyst</span>
+            <span class="chip up">Confirmation</span>
+            <span class="chip">Risk overlay</span>
+            <span class="chip warn">Needs market data</span>
+          </div>
+          <pre class="json-preview">{
+  "eventId": "evt_20260713_0184",
+  "clusterId": "cluster_nvda_guidance",
+  "activeSignal": {
+    "direction": "LONG",
+    "signalScore": 67.4,
+    "confidence": 0.86
+  }
+}</pre>
+        </aside>
+
+        <div class="card col-7">
+          <div class="card-title"><span class="dot indigo"></span>Instrument Impacts</div>
+          <div class="mini-list">
+            <div class="mini-item"><span class="mono">NVDA</span><span>Direct company catalyst</span><span class="row-metric up">+67.4</span></div>
+            <div class="mini-item"><span class="mono">SMH</span><span>ETF holding exposure, capped by weight</span><span class="row-metric up">+12.8</span></div>
+            <div class="mini-item"><span class="mono">SEMG.L</span><span>Global semiconductor UCITS ETF derived exposure</span><span class="row-metric up">+9.6</span></div>
+          </div>
+        </div>
+
+        <div class="card col-5">
+          <div class="card-title"><span class="dot amber"></span>Calibration Readiness</div>
+          <div class="metric-row">
+            <div class="kv"><div class="kv-label">Anchor</div><div class="kv-value">08:31</div></div>
+            <div class="kv"><div class="kv-label">Session</div><div class="kv-value">Regular</div></div>
+            <div class="kv"><div class="kv-label">EODHD Calls</div><div class="kv-value">1</div></div>
+            <div class="kv"><div class="kv-label">Outcome</div><div class="kv-value">Pending</div></div>
+          </div>
+          <div class="chip-strip">
+            <span class="chip">5m</span>
+            <span class="chip">30m</span>
+            <span class="chip">1d</span>
+            <span class="chip">5d</span>
+            <span class="chip">20d</span>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
