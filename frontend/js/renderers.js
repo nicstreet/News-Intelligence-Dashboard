@@ -19,6 +19,31 @@
     return String(value || "n/a").replaceAll("_", " ").toUpperCase();
   }
 
+  function ukDateTime(value) {
+    if (!value) {
+      return {date: "n/a", time: "n/a"};
+    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return {date: "n/a", time: "n/a"};
+    }
+    const parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false
+    }).formatToParts(date);
+    const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return {
+      date: `${byType.day}/${byType.month}/${byType.year}`,
+      time: `${byType.hour}:${byType.minute}:${byType.second}`
+    };
+  }
+
   function metric(label, value, extraClass) {
     return `<div class="metric ${extraClass || ""}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`;
   }
@@ -264,21 +289,41 @@
 
   function renderEventRows(events, selectedEventId) {
     if (!events || events.length === 0) {
-      return `<tr><td colspan="8">No recent events available.</td></tr>`;
+      return `<tr><td colspan="10">No recent events available.</td></tr>`;
     }
     return events.map((event) => {
       const analysis = event.analysis || {};
+      const published = ukDateTime(event.timestamps ? event.timestamps.published_at : null);
       return `<tr data-event-id="${escapeHtml(event.event_id)}" class="${event.event_id === selectedEventId ? "active-row" : ""}">
-        <td>${escapeHtml(event.timestamps ? event.timestamps.processed_at : "n/a")}</td>
-        <td>${upper(event.event_type)}</td>
-        <td>${escapeHtml(event.primary_symbol || "n/a")}</td>
+        <td>${eventIdSourceLink(event)}</td>
+        <td>${escapeHtml(published.date)}</td>
+        <td>${escapeHtml(published.time)}</td>
         <td>${escapeHtml(event.headline)}</td>
+        <td>${upper(event.event_type)}</td>
+        <td>${escapeHtml(symbolSpecificValue(event))}</td>
         <td class="direction-${upper(analysis.direction || "neutral")}">${upper(analysis.direction || "neutral")}</td>
         <td>${number(analysis.directional_strength, 2)}</td>
         <td>${number(analysis.confidence, 2)}</td>
-        <td>${sourceLink(event)}</td>
+        <td>${number(analysis.quality, 2)}</td>
       </tr>`;
     }).join("");
+  }
+
+  function eventIdSourceLink(event) {
+    const source = event && event.source ? event.source : {};
+    const eventId = event && event.event_id ? event.event_id : "n/a";
+    if (!source.source_url) {
+      return escapeHtml(eventId);
+    }
+    return `<a href="${escapeHtml(source.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(eventId)}</a>`;
+  }
+
+  function symbolSpecificValue(event) {
+    const scope = String(event && event.event_scope ? event.event_scope : "").toLowerCase();
+    if (!["instrument", "etf"].includes(scope)) {
+      return "N/A";
+    }
+    return event.primary_symbol || "N/A";
   }
 
   function sourceLink(event) {
