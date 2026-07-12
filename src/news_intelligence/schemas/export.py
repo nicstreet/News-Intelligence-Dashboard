@@ -8,6 +8,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from news_intelligence.models import (
+    FavouritesUniverse,
     InstrumentNewsImpact,
     NewsAnalysisResult,
     NewsEvent,
@@ -20,6 +21,7 @@ from news_intelligence.models import (
     ResolvedEntity,
     SourceConnectorStatus,
     SourceIngestedFiling,
+    SourceIngestedItem,
     SourceIngestionRun,
 )
 
@@ -34,7 +36,9 @@ PUBLIC_MODELS: tuple[type[BaseModel], ...] = (
     NewsSignal,
     ProcessingLineage,
     NewsAnalysisResult,
+    FavouritesUniverse,
     SourceConnectorStatus,
+    SourceIngestedItem,
     SourceIngestedFiling,
     SourceIngestionRun,
 )

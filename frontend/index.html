@@ -19,8 +19,28 @@
       </div>
     </header>
 
-    <main class="layout">
-      <section class="panel input-panel" aria-labelledby="news-input-heading">
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Dashboard views">
+        <nav class="side-nav">
+          <button class="side-nav-button active" data-view="overview" type="button">Overview</button>
+          <button class="side-nav-button" data-view="sources" type="button">Sources</button>
+          <button class="side-nav-button" data-view="events" type="button">Events</button>
+          <button class="side-nav-button" data-view="signals" type="button">Signals</button>
+          <button class="side-nav-button" data-view="universe" type="button">Favourites</button>
+          <button class="side-nav-button" data-view="calibration" type="button">Calibration</button>
+          <button class="side-nav-button" data-view="file-drop" type="button">File Drop</button>
+          <button class="side-nav-button" data-view="json" type="button">JSON / Audit</button>
+          <button class="side-nav-button" data-view="developer" type="button">Developer</button>
+        </nav>
+        <div class="sidebar-actions">
+          <button id="poll-due-sources" type="button">Poll Due Sources</button>
+          <button id="poll-world-news" type="button">Poll World News</button>
+          <button id="sidebar-start-test-run" type="button">Start Test Run</button>
+        </div>
+      </aside>
+
+      <main class="layout">
+      <section class="panel input-panel view-section" data-views="overview developer" aria-labelledby="news-input-heading">
         <div class="section-heading">
           <h2 id="news-input-heading">News Input</h2>
           <button id="toggle-input-mode" type="button">Raw JSON</button>
@@ -84,7 +104,7 @@
         </form>
       </section>
 
-      <section class="panel summary-panel" aria-labelledby="event-summary-heading">
+      <section class="panel summary-panel view-section" data-views="overview signals" aria-labelledby="event-summary-heading">
         <div class="section-heading">
           <h2 id="event-summary-heading">Event Summary</h2>
           <span id="request-id" class="meta-text">No request</span>
@@ -93,7 +113,7 @@
         <div id="pipeline" class="pipeline"></div>
       </section>
 
-      <section class="panel recent-panel" aria-labelledby="recent-events-heading">
+      <section class="panel recent-panel view-section" data-views="overview events" aria-labelledby="recent-events-heading">
         <div class="section-heading">
           <h2 id="recent-events-heading">Recent Events</h2>
           <button id="refresh-recent" type="button">Refresh</button>
@@ -117,7 +137,7 @@
         </div>
       </section>
 
-      <section class="panel impacts-panel" aria-labelledby="instrument-impacts-heading">
+      <section class="panel impacts-panel view-section" data-views="events signals" aria-labelledby="instrument-impacts-heading">
         <div class="section-heading">
           <h2 id="instrument-impacts-heading">Instrument Impacts</h2>
           <label class="inline-control">
@@ -150,7 +170,64 @@
         </div>
       </section>
 
-      <section class="panel detail-panel" aria-labelledby="detail-tabs-heading">
+      <section class="panel automation-panel view-section" data-views="overview sources" aria-labelledby="automation-heading">
+        <div class="section-heading">
+          <h2 id="automation-heading">Automation</h2>
+          <div class="source-actions">
+            <button id="refresh-automation" type="button">Refresh</button>
+          </div>
+        </div>
+        <div id="automation-status"></div>
+      </section>
+
+      <section class="panel universe-panel view-section view-hidden" data-views="universe" aria-labelledby="universe-heading">
+        <div class="section-heading">
+          <h2 id="universe-heading">Favourites Universe</h2>
+          <button id="refresh-universe" type="button">Refresh</button>
+        </div>
+        <div id="universe-summary" class="metric-grid"></div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Name</th>
+                <th>Type</th>
+                <th>Exchange</th>
+                <th>Currency</th>
+                <th>Theme</th>
+                <th>Sub-theme</th>
+                <th>Overlap</th>
+                <th>Benchmark</th>
+              </tr>
+            </thead>
+            <tbody id="universe-table"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel calibration-panel view-section view-hidden" data-views="calibration" aria-labelledby="calibration-heading">
+        <div class="section-heading">
+          <h2 id="calibration-heading">Historical Calibration</h2>
+          <button id="refresh-calibration" type="button">Refresh</button>
+        </div>
+        <div id="calibration-summary" class="metric-grid"></div>
+        <div id="calibration-report"></div>
+      </section>
+
+      <section class="panel file-drop-panel view-section view-hidden" data-views="file-drop" aria-labelledby="file-drop-heading">
+        <div class="section-heading">
+          <h2 id="file-drop-heading">File Drop</h2>
+          <div class="source-actions">
+            <button id="refresh-file-drop" type="button">Refresh</button>
+            <button id="export-latest-file-drop" type="button">Export Latest Signals</button>
+          </div>
+        </div>
+        <div id="file-drop-status" class="metric-grid"></div>
+        <pre id="file-drop-result"></pre>
+      </section>
+
+      <section class="panel detail-panel view-section" data-views="events signals sources json developer" aria-labelledby="detail-tabs-heading">
         <div class="tabs" role="tablist" aria-labelledby="detail-tabs-heading">
           <h2 id="detail-tabs-heading" class="visually-hidden">Detail panels</h2>
           <button class="tab active" data-panel="signal" type="button">Signal</button>
@@ -249,7 +326,8 @@
           </details>
         </div>
       </section>
-    </main>
+      </main>
+    </div>
 
     <script src="/static/js/fixtures.js"></script>
     <script src="/static/js/api.js"></script>

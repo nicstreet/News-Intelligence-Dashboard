@@ -15,8 +15,10 @@ Not financial advice. The generated signals are research artifacts and are not a
 - Keeps `article_count`, `duplicate_count`, and `update_count` separate.
 - Preserves event versions and signal snapshots when material facts change.
 - Scores instrument impact, confidence, quality, freshness, and signal direction separately.
-- Provides a FastAPI backend, SQLite storage, CLI entry point, static dashboard, and SEC EDGAR ingestion connector.
+- Adds an explainable `-100` to `+100` news signal score with composition and risk factors.
+- Provides a FastAPI backend, SQLite storage, CLI entry point, static dashboard, SEC EDGAR connector, and controlled world-news JSON connector.
 - Supports isolated dashboard test runs so fixtures do not aggregate with historical development data.
+- Supports a configured favourites universe, automation status, calibration report scaffold, and atomic file-drop JSON export.
 
 ## Current Status
 
@@ -26,16 +28,23 @@ Implemented:
 - Duplicate clustering and material-update versioning.
 - SQLite JSON persistence.
 - Dashboard with event, cluster, evidence, signal, JSON, source, and test panels.
+- Left-navigation dashboard shell with Sources, Events, Signals, Favourites, Calibration, File Drop, JSON/Audit, and Developer views.
 - Test-run controls for deterministic fixture testing.
-- Unit and integration tests for duplicate handling, material updates, signal snapshots, deletion, and reset behaviour.
+- Favourites-universe config for the initial calibration/source-monitoring scope.
+- Controlled world-news JSON source family for market-relevant geopolitical and macro events.
+- Scheduler service for due/stale source checks and poll-due automation.
+- Atomic file-drop exporter for cleansed signal/event JSON payloads.
+- Calibration report scaffold over persisted favourite-universe signals.
+- Unit and integration tests for duplicate handling, material updates, signal snapshots, deletion, reset behaviour, world-news ingestion, signal scoring, file-drop export, and calibration scaffolding.
 
 Intentionally not implemented yet:
 
-- Additional external news/source connectors beyond SEC EDGAR.
+- Live licensed world-news provider integration.
+- Additional external source connectors beyond SEC EDGAR and the controlled world-news JSON adapter.
 - LLM or machine-learning classification.
 - Broker/order-management integration.
 - Production authentication and multi-user permissions.
-- Historical outcome calibration.
+- Historical market-data outcome joins and learned calibration parameters.
 
 ## Quick Start
 
@@ -62,9 +71,21 @@ news-intelligence --file examples/nvda_earnings.json --no-persist
 
 The dashboard is served by FastAPI at `/` and uses vanilla HTML, CSS, and JavaScript from `frontend/`.
 
+It is organised as a left-navigation operational console:
+
+- `Overview`: current analysis, pipeline status, recent events, and automation health.
+- `Sources`: connector status, due/stale checks, SEC polling, world-news polling, and ingested source records.
+- `Events`: recent events, clusters, update/duplicate counts, and event audit trail.
+- `Signals`: signal score, confidence, quality, freshness, composition, risk, evidence, and impacts.
+- `Favourites`: configured trading/research universe.
+- `Calibration`: current historical-calibration report scaffold.
+- `File Drop`: configured output directory and latest signal export action.
+- `JSON / Audit`: raw contract inspection.
+- `Developer`: deterministic fixtures, test-run controls, and reset controls.
+
 For deterministic fixture testing:
 
-1. Open the `Test` tab.
+1. Open the `Developer` view.
 2. Click `Start New Test Run`.
 3. Load or submit fixture articles.
 4. Inspect `Event`, `Cluster`, `Signal`, `Event versions`, and `Signal snapshots`.
@@ -75,7 +96,7 @@ The active `test_run_id` is displayed in the Test panel. Previous test runs rema
 
 For SEC ingestion:
 
-1. Open the `Sources` tab.
+1. Open the `Sources` view.
 2. Review connector status.
 3. Click `Poll SEC EDGAR 8-Ks`.
 4. Inspect recent ingested filings.
@@ -160,13 +181,22 @@ Implemented endpoints:
 | `GET` | `/news/events/{event_id}/detail` | Fetch event, cluster, impacts, and signals |
 | `GET` | `/news/clusters/{cluster_id}` | Fetch one event cluster |
 | `GET` | `/news/signals/{symbol}` | Fetch recent signals for an instrument |
+| `GET` | `/universe/favourites` | Fetch the configured favourites universe |
 | `POST` | `/test-runs` | Create an isolated dashboard/test run |
 | `GET` | `/test-runs` | List historical test runs |
 | `DELETE` | `/test-runs/{test_run_id}` | Delete records for one test run |
 | `DELETE` | `/development-data` | Delete development/test records only |
 | `POST` | `/sources/sec-edgar/poll` | Poll configured SEC EDGAR companies for new 8-K filings |
+| `POST` | `/sources/world-news/poll` | Poll configured world-news JSON records |
+| `POST` | `/sources/poll-due` | Poll connectors that are due, or force all connectors |
 | `GET` | `/sources/filings/recent` | List recently ingested source filings |
+| `GET` | `/sources/items/recent` | List recently ingested source records |
 | `GET` | `/sources/status` | Show configured source status |
+| `GET` | `/automation/status` | Show due/stale source automation state |
+| `GET` | `/calibration/report` | Build the current calibration report scaffold |
+| `GET` | `/outputs/file-drop/status` | Show file-drop output configuration |
+| `POST` | `/outputs/file-drop/signals/{signal_id}` | Export one signal payload to file drop |
+| `POST` | `/outputs/file-drop/latest` | Export recent signal payloads to file drop |
 | `GET` | `/schemas` | Export public JSON Schemas |
 | `GET` | `/health` | Health check |
 | `GET` | `/` | Dashboard |
@@ -202,6 +232,8 @@ The code is split into replaceable modules:
 - `clustering`: duplicate/material-update grouping and audit trail.
 - `scoring`: freshness and instrument impact scoring.
 - `collectors`: instrument-specific signal snapshots.
+- `calibration`: historical calibration report scaffolding.
+- `outputs`: downstream output adapters such as file-drop JSON.
 - `storage`: SQLite-backed JSON repositories.
 - `api`: FastAPI routes and dashboard hosting.
 
@@ -217,7 +249,7 @@ Design notes:
 ## Project Layout
 
 ```text
-config/                         Rule, source, freshness, runtime, and instrument config
+config/                         Rule, source, freshness, runtime, automation, file-drop, and universe config
 docs/                           Design docs, source notes, and manual QA notes
 examples/                       Example raw news payloads
 frontend/                       Static dashboard
@@ -271,6 +303,19 @@ The connector rate-limits requests below SEC's published max request rate, retri
 
 Dashboard polling inspects the newest configured 8-K window for each company. It does not keep walking backward to backfill older filings after the newest records are already known.
 
+The favourites universe is configured in `config/favourites.yaml`. It currently includes the US shares, ETFs, indices, and UK LSE GBP ETFs listed for the initial calibration scope.
+
+World-news ingestion is configured in `config/world-news.yaml`. The current adapter is a controlled JSON source for market-relevant geopolitical and macro records covering the US, UK, China, Europe, and global-market risk themes.
+
+Automation and file-drop output are configured in:
+
+```text
+config/automation.yaml
+config/file-drop.yaml
+```
+
+Automation is explicit and inspectable through `/automation/status` and `/sources/poll-due`. File-drop export writes completed `.json` files through an atomic `.tmp` rename.
+
 ## Tests And Validation
 
 Run the full test suite:
@@ -294,7 +339,7 @@ python -m mypy src tests
 Current validation state at the time this README was written:
 
 ```text
-python -m pytest        29 passed, 1 skipped
+python -m pytest        34 passed, 1 skipped
 python -m ruff check .  passed
 python -m mypy src tests passed
 ```
@@ -312,11 +357,16 @@ Public contracts are Pydantic models:
 - `RawNewsItem`
 - `NormalisedNewsItem`
 - `NewsSource`
+- `FavouritesUniverse`
 - `ResolvedEntity`
 - `NewsEvent`
 - `NewsEventCluster`
 - `InstrumentNewsImpact`
 - `NewsSignal`
+- `SourceIngestedItem`
+- `SourceIngestedFiling`
+- `SourceConnectorStatus`
+- `SourceIngestionRun`
 - `ProcessingLineage`
 - `NewsAnalysisResult`
 

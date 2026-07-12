@@ -1,0 +1,12 @@
+version: automation-1.0.0
+enabled: false
+poll_due_on_startup: false
+sources:
+  sec_edgar:
+    enabled: true
+    stale_after_minutes: 180
+    retry_attempts: 2
+  world_news:
+    enabled: true
+    stale_after_minutes: 60
+    retry_attempts: 2

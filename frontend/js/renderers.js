@@ -93,6 +93,8 @@
     const decision = signal.decision || {};
     return `<div class="signal-grid">
       ${metric("Instrument", signal.instrument ? signal.instrument.symbol : "n/a")}
+      ${metric("Signal score", number(metrics.signal_score, 1))}
+      ${metric("Score band", upper(metrics.strength || "neutral"))}
       ${metric("Direction", upper(metrics.direction), `direction-${upper(metrics.direction)}`)}
       ${metric("Strength", number(metrics.directional_strength, 2))}
       ${metric("Confidence", number(metrics.confidence, 2))}
@@ -192,7 +194,7 @@
       <td>${escapeHtml(source.last_successful_ingestion || "n/a")}</td>
       <td>${escapeHtml(source.last_failure || "n/a")}</td>
       <td>${escapeHtml(source.items_ingested)}</td>
-      <td>${escapeHtml(source.current_status)}</td>
+      <td>${escapeHtml(source.current_status)}${source.stale ? " / STALE" : ""}${source.due ? " / DUE" : ""}</td>
     </tr>`).join("");
     return `<div class="table-wrap">
       <table>
@@ -258,6 +260,130 @@
     </tr>`).join("");
   }
 
+  function renderAutomation(status) {
+    if (!status) {
+      return `<p>No automation status available.</p>`;
+    }
+    const sources = status.sources || [];
+    const rows = sources.length
+      ? sources.map((source) => `<tr>
+        <td>${escapeHtml(source.source_name)}</td>
+        <td>${escapeHtml(source.connector_type)}</td>
+        <td>${escapeHtml(source.current_status)}</td>
+        <td>${String(Boolean(source.due)).toUpperCase()}</td>
+        <td>${String(Boolean(source.stale)).toUpperCase()}</td>
+        <td>${escapeHtml(source.last_polled_at || "n/a")}</td>
+        <td>${escapeHtml(source.next_poll_after || "n/a")}</td>
+        <td>${escapeHtml(source.last_failure || "n/a")}</td>
+      </tr>`).join("")
+      : `<tr><td colspan="8">No source automation status available.</td></tr>`;
+    return `<div class="metric-grid">
+      ${metric("Automation enabled", String(Boolean(status.enabled)).toUpperCase())}
+      ${metric("Due sources", status.due_count || 0)}
+      ${metric("Stale sources", status.stale_count || 0)}
+      ${metric("Generated", status.generated_at || "n/a")}
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Source</th>
+            <th>Connector</th>
+            <th>Status</th>
+            <th>Due</th>
+            <th>Stale</th>
+            <th>Last poll</th>
+            <th>Next poll</th>
+            <th>Last failure</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  function renderUniverseSummary(universe) {
+    const instruments = universe && universe.instruments ? universe.instruments : [];
+    const lseCount = instruments.filter((instrument) => instrument.uk_lse_gbp_etf).length;
+    const themes = new Set(instruments.map((instrument) => instrument.primary_theme).filter(Boolean));
+    return [
+      metric("Universe version", universe ? universe.version : "n/a"),
+      metric("Instruments", instruments.length),
+      metric("Themes", themes.size),
+      metric("UK LSE GBP ETFs", lseCount)
+    ].join("");
+  }
+
+  function renderUniverseTable(universe) {
+    const instruments = universe && universe.instruments ? universe.instruments : [];
+    if (instruments.length === 0) {
+      return `<tr><td colspan="9">No favourites configured.</td></tr>`;
+    }
+    return instruments.map((instrument) => `<tr>
+      <td>${escapeHtml(instrument.symbol)}</td>
+      <td>${escapeHtml(instrument.name)}</td>
+      <td>${escapeHtml(instrument.instrument_type)}</td>
+      <td>${escapeHtml(instrument.exchange)}</td>
+      <td>${escapeHtml(instrument.currency)}</td>
+      <td>${escapeHtml(instrument.primary_theme)}</td>
+      <td>${escapeHtml(instrument.sub_theme)}</td>
+      <td>${escapeHtml(instrument.overlap_group)}</td>
+      <td>${escapeHtml(instrument.benchmark || "n/a")}</td>
+    </tr>`).join("");
+  }
+
+  function renderCalibrationSummary(report) {
+    if (!report) {
+      return metric("Status", "No calibration report loaded");
+    }
+    return [
+      metric("Universe version", report.universe_version || "n/a"),
+      metric("Favourite count", report.favourites_count || 0),
+      metric("Signals in scope", report.signal_count || 0),
+      metric("Outcome status", upper(report.outcome_status || "unknown"))
+    ].join("");
+  }
+
+  function renderCalibrationReport(report) {
+    if (!report) {
+      return `<p>No calibration report loaded.</p>`;
+    }
+    const profiles = report.profiles || [];
+    const rows = profiles.length
+      ? profiles.map((profile) => `<tr>
+        <td>${escapeHtml(profile.calibration_profile)}</td>
+        <td>${escapeHtml(profile.sample_size)}</td>
+        <td>${number(profile.mean_signal_score, 2)}</td>
+        <td>${escapeHtml(profile.status)}</td>
+      </tr>`).join("")
+      : `<tr><td colspan="4">No calibration profiles available yet.</td></tr>`;
+    return `<div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Profile</th>
+            <th>Sample</th>
+            <th>Mean score</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  }
+
+  function renderFileDropStatus(status) {
+    if (!status) {
+      return metric("Status", "No file-drop status loaded");
+    }
+    return [
+      metric("Enabled", String(Boolean(status.enabled)).toUpperCase()),
+      metric("Schema", status.schema_version || "n/a"),
+      metric("Output dir exists", String(Boolean(status.output_dir_exists)).toUpperCase()),
+      metric("Output dir", status.output_dir || "n/a")
+    ].join("");
+  }
+
   function renderError(error) {
     const detail = error.detail ? JSON.stringify(error.detail, null, 2) : "";
     return `<strong>${escapeHtml(error.stage || "Error")}: ${escapeHtml(error.message || error.summary || "Request failed")}</strong>
@@ -280,6 +406,12 @@
     renderSourceFilings,
     renderRecent,
     renderTestRuns,
+    renderAutomation,
+    renderUniverseSummary,
+    renderUniverseTable,
+    renderCalibrationSummary,
+    renderCalibrationReport,
+    renderFileDropStatus,
     renderError
   };
 })();

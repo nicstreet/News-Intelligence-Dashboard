@@ -68,6 +68,10 @@ class StrategyRole(StrEnum):
     HEDGE_TRIGGER = "HEDGE_TRIGGER"
 
 
+class IndicatorCategory(StrEnum):
+    EVENT_INTELLIGENCE = "event_intelligence"
+
+
 class Direction(StrEnum):
     BULLISH = "bullish"
     BEARISH = "bearish"
@@ -142,10 +146,51 @@ class SourceConnectorStatus(ContractModel):
         return ensure_utc(value) if value is not None else None
 
 
-class SourceIngestedFiling(ContractModel):
+class FavouriteInstrument(ContractModel):
+    symbol: str
+    name: str
+    instrument_type: str
+    exchange: str
+    currency: str
+    watchlists: list[str] = Field(default_factory=list)
+    primary_theme: str
+    sub_theme: str
+    overlap_group: str
+    benchmark: str | None = None
+    sector_benchmark: str | None = None
+    aliases: list[str] = Field(default_factory=list)
+    uk_lse_gbp_etf: bool = False
+
+
+class FavouritesUniverse(ContractModel):
+    version: str
+    description: str | None = None
+    default_benchmarks: dict[str, str] = Field(default_factory=dict)
+    instruments: list[FavouriteInstrument] = Field(default_factory=list)
+
+
+class SourceIngestedItem(ContractModel):
     source_record_id: str
     source_name: str
     connector_type: str
+    headline: str
+    published_at: datetime
+    source_url: str | None = None
+    ingested_at: datetime
+    raw_id: str | None = None
+    event_id: str | None = None
+    cluster_id: str | None = None
+    test_run_id: str | None = None
+    record_environment: RuntimeEnvironment = RuntimeEnvironment.DEVELOPMENT
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("published_at", "ingested_at")
+    @classmethod
+    def _normalise_datetime(cls, value: datetime) -> datetime:
+        return ensure_utc(value)
+
+
+class SourceIngestedFiling(SourceIngestedItem):
     ticker: str
     cik: str
     accession_number: str
@@ -155,18 +200,20 @@ class SourceIngestedFiling(ContractModel):
     filing_url: str
     primary_document_url: str
     filing_sections: list[str] = Field(default_factory=list)
-    headline: str
-    ingested_at: datetime
-    raw_id: str | None = None
-    event_id: str | None = None
-    cluster_id: str | None = None
-    test_run_id: str | None = None
-    record_environment: RuntimeEnvironment = RuntimeEnvironment.DEVELOPMENT
-    metadata: dict[str, Any] = Field(default_factory=dict)
 
-    @field_validator("filing_time", "ingested_at")
+    @model_validator(mode="before")
     @classmethod
-    def _normalise_datetime(cls, value: datetime) -> datetime:
+    def _copy_filing_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if data.get("published_at") is None and data.get("filing_time") is not None:
+                data["published_at"] = data["filing_time"]
+            if data.get("source_url") is None and data.get("filing_url") is not None:
+                data["source_url"] = data["filing_url"]
+        return data
+
+    @field_validator("filing_time")
+    @classmethod
+    def _normalise_filing_time(cls, value: datetime) -> datetime:
         return ensure_utc(value)
 
 
@@ -180,6 +227,7 @@ class SourceIngestionRun(ContractModel):
     skipped_count: int = Field(ge=0)
     error_count: int = Field(ge=0)
     errors: list[str] = Field(default_factory=list)
+    items: list[SourceIngestedItem] = Field(default_factory=list)
     filings: list[SourceIngestedFiling] = Field(default_factory=list)
     status: SourceConnectorStatus
 
@@ -274,15 +322,43 @@ class NewsAnalysis(ContractModel):
     directional_strength: SignedScore
     confidence: Score
     quality: Score
+    raw_sentiment: SignedScore = 0.0
+    event_impact: Score = 0.0
     surprise: Score = 0.0
     novelty: Score = 0.0
+    specificity: Score = 0.5
+    certainty: Score = 0.5
+    urgency: Score = 0.0
     expected_persistence: Literal["intraday", "multi_day", "multi_week"] = "intraday"
+    expected_time_horizon_minutes: int = Field(ge=0, default=480)
+
+
+class ContentQuality(ContractModel):
+    is_duplicate: bool = False
+    is_update: bool = False
+    is_rumour: bool = False
+    is_opinion: bool = False
+    contains_primary_statement: bool = False
+    contradiction_detected: bool = False
+
+
+class HistoricalCalibrationSummary(ContractModel):
+    calibration_profile: str = "uncalibrated"
+    sample_size: int = Field(ge=0, default=0)
+    directional_accuracy: Score = 0.5
+    median_abnormal_return_30m: float | None = None
+    median_abnormal_return_1d: float | None = None
+    median_abnormal_return_5d: float | None = None
+    median_volume_response: float | None = None
+    historical_reliability: Score = 0.5
 
 
 class NewsEvent(ContractModel):
     schema_version: str = "1.0.0"
     event_id: str
     cluster_id: str = ""
+    indicator_category: IndicatorCategory = IndicatorCategory.EVENT_INTELLIGENCE
+    event_scope: ScopeType = ScopeType.INSTRUMENT
     event_status: EventStatus
     event_type: EventType
     event_subtype: str
@@ -292,6 +368,10 @@ class NewsEvent(ContractModel):
     timestamps: NewsTimestamps
     entities: list[ResolvedEntity] = Field(default_factory=list)
     analysis: NewsAnalysis
+    content_quality: ContentQuality = Field(default_factory=ContentQuality)
+    historical_calibration: HistoricalCalibrationSummary = Field(
+        default_factory=HistoricalCalibrationSummary
+    )
     strategy_roles: list[StrategyRole] = Field(default_factory=list)
     lineage: ProcessingLineage
     primary_symbol: str | None = None
@@ -349,6 +429,7 @@ class ClusterSignalSnapshot(ContractModel):
     event_status: EventStatus
     direction: SignalDirection
     directional_strength: SignedScore
+    signal_score: float = Field(ge=-100.0, le=100.0, default=0.0)
     confidence: Score
     quality: Score
     reason: str
@@ -449,13 +530,52 @@ class InstrumentRef(ContractModel):
     exchange: str | None = None
 
 
+class SignalStrength(StrEnum):
+    STRONG_BULLISH = "STRONG_BULLISH"
+    BULLISH = "BULLISH"
+    WEAK_BULLISH = "WEAK_BULLISH"
+    NEUTRAL = "NEUTRAL"
+    WEAK_BEARISH = "WEAK_BEARISH"
+    BEARISH = "BEARISH"
+    STRONG_BEARISH = "STRONG_BEARISH"
+
+
 class SignalMetrics(ContractModel):
+    signal_score: float = Field(ge=-100.0, le=100.0, default=0.0)
     direction: SignalDirection
     directional_strength: SignedScore
     confidence: Score
     quality: Score
     freshness: Score
+    strength: SignalStrength = SignalStrength.NEUTRAL
     time_horizon: Literal["INTRADAY", "MULTI_DAY", "MULTI_WEEK"]
+
+
+class SignalClassification(ContractModel):
+    indicator_category: IndicatorCategory = IndicatorCategory.EVENT_INTELLIGENCE
+    strategy_role: list[StrategyRole] = Field(default_factory=list)
+    redundancy_cluster: str = "event_intelligence"
+    causal_cluster: str | None = None
+    applicable_regimes: list[str] = Field(default_factory=lambda: ["EVENT_DRIVEN"])
+
+
+class SignalComposition(ContractModel):
+    directional_impact: float = 0.0
+    historical_reliability: Score = 0.5
+    source_credibility: Score = 0.5
+    surprise: Score = 0.0
+    novelty: Score = 0.0
+    entity_relevance: Score = 0.0
+    freshness_decay: Score = 0.0
+    regime_compatibility: Score = 0.5
+
+
+class SignalRisk(ContractModel):
+    rumour_risk: Score = 0.0
+    contradiction_risk: Score = 0.0
+    scheduled_event_risk: Score = 0.0
+    reversal_risk: Score = 0.0
+    confounding_event_risk: Score = 0.0
 
 
 class SignalEvidence(ContractModel):
@@ -465,9 +585,11 @@ class SignalEvidence(ContractModel):
     primary_source_present: bool = False
     article_count: int = Field(ge=1)
     duplicate_count: int = Field(ge=0)
+    update_count: int = Field(ge=0, default=0)
 
 
 class SignalDecision(ContractModel):
+    suggested_action: SignalDirection = SignalDirection.NEUTRAL
     can_trigger_trade: bool
     can_confirm_trade: bool
     can_veto_trade: bool
@@ -477,11 +599,15 @@ class SignalDecision(ContractModel):
 class NewsSignal(ContractModel):
     schema_version: str = "1.0.0"
     collector_type: str = "news_intelligence"
+    collector_id: str | None = None
     signal_id: str
     event_id: str
     cluster_id: str
     instrument: InstrumentRef
     signal: SignalMetrics
+    classification: SignalClassification = Field(default_factory=SignalClassification)
+    composition: SignalComposition = Field(default_factory=SignalComposition)
+    risk: SignalRisk = Field(default_factory=SignalRisk)
     roles: list[StrategyRole]
     evidence: SignalEvidence
     decision: SignalDecision

@@ -18,6 +18,7 @@ from news_intelligence.models import (
     RawNewsItem,
     RuntimeEnvironment,
     SourceIngestedFiling,
+    SourceIngestedItem,
 )
 from news_intelligence.utils import normalise_whitespace, stable_hash, to_utc
 
@@ -26,6 +27,8 @@ TextFetcher = Callable[[str, dict[str, str], int], str]
 
 class SecEdgarConnector:
     adapter_id = "sec_edgar"
+    country_or_region = "US"
+    source_class = "regulatory"
 
     def __init__(
         self,
@@ -73,7 +76,8 @@ class SecEdgarConnector:
         filings.sort(key=lambda filing: filing.filing_time, reverse=True)
         return filings
 
-    def to_raw_news_item(self, filing: SourceIngestedFiling) -> RawNewsItem:
+    def to_raw_news_item(self, filing: SourceIngestedItem) -> RawNewsItem:
+        filing = SourceIngestedFiling.model_validate(filing)
         raw_id = stable_hash(
             self.connector_type,
             filing.accession_number,
@@ -172,7 +176,9 @@ class SecEdgarConnector:
                     accession_number=accession_number,
                     company=company["company"],
                     form_type=form_type,
+                    published_at=filing_time,
                     filing_time=filing_time,
+                    source_url=filing_url,
                     filing_url=filing_url,
                     primary_document_url=primary_document_url,
                     filing_sections=filing_sections,

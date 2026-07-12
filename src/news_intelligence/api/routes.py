@@ -5,11 +5,16 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Body, HTTPException
 
+from news_intelligence.calibration.service import HistoricalCalibrationService
 from news_intelligence.ingestion.adapters import coerce_raw_news_items
+from news_intelligence.outputs.file_drop import FileDropExporter
 from news_intelligence.pipeline import NewsIntelligencePipeline
 from news_intelligence.schemas.export import public_json_schemas
+from news_intelligence.sources.scheduler import SourceScheduler
 from news_intelligence.sources.sec_edgar import SecEdgarConnector
 from news_intelligence.sources.service import SourceIngestionService
+from news_intelligence.sources.world_news import WorldNewsConnector
+from news_intelligence.universe import FavouritesUniverseService
 
 router = APIRouter()
 pipeline = NewsIntelligencePipeline()
@@ -79,6 +84,11 @@ async def get_signals(symbol: str, limit: int = 20) -> list[dict[str, Any]]:
     return pipeline.get_signals(symbol.upper())[:limit]
 
 
+@router.get("/universe/favourites")
+async def favourites_universe() -> dict[str, Any]:
+    return FavouritesUniverseService(pipeline.config).universe().model_dump(mode="json")
+
+
 @router.post("/test-runs")
 async def create_test_run() -> dict[str, Any]:
     return {
@@ -133,8 +143,27 @@ async def poll_sec_edgar(force: bool = False) -> dict[str, Any]:
     return result.model_dump(mode="json")
 
 
+@router.post("/sources/world-news/poll")
+async def poll_world_news(force: bool = False) -> dict[str, Any]:
+    service = SourceIngestionService(pipeline)
+    connector = WorldNewsConnector(pipeline.config)
+    result = service.ingest(connector, force=force)
+    return result.model_dump(mode="json")
+
+
+@router.post("/sources/poll-due")
+async def poll_due_sources(force: bool = False) -> list[dict[str, Any]]:
+    runs = SourceScheduler(pipeline).poll_due(force=force)
+    return [run.model_dump(mode="json") for run in runs]
+
+
 @router.get("/sources/filings/recent")
 async def recent_source_filings(limit: int = 50) -> list[dict[str, object]]:
+    return SourceIngestionService(pipeline).recent_filings(limit=limit)
+
+
+@router.get("/sources/items/recent")
+async def recent_source_items(limit: int = 50) -> list[dict[str, object]]:
     return SourceIngestionService(pipeline).recent_filings(limit=limit)
 
 
@@ -150,7 +179,43 @@ async def source_status() -> list[dict[str, Any]]:
     merged[f"{sec_status.source_name}:{sec_status.connector_type}"] = sec_status.model_dump(
         mode="json"
     )
+    world_status = service.status_for(WorldNewsConnector(pipeline.config))
+    merged[f"{world_status.source_name}:{world_status.connector_type}"] = (
+        world_status.model_dump(mode="json")
+    )
     return list(merged.values())
+
+
+@router.get("/automation/status")
+async def automation_status() -> dict[str, Any]:
+    return SourceScheduler(pipeline).status()
+
+
+@router.get("/calibration/report")
+async def calibration_report(limit: int = 500) -> dict[str, Any]:
+    service = HistoricalCalibrationService(
+        pipeline.repositories,
+        FavouritesUniverseService(pipeline.config),
+    )
+    return service.report(limit=limit)
+
+
+@router.get("/outputs/file-drop/status")
+async def file_drop_status() -> dict[str, Any]:
+    return FileDropExporter(pipeline.config, pipeline.repositories).status()
+
+
+@router.post("/outputs/file-drop/signals/{signal_id}")
+async def export_signal_to_file_drop(signal_id: str) -> dict[str, Any]:
+    try:
+        return FileDropExporter(pipeline.config, pipeline.repositories).export_signal(signal_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail="Signal not found") from exc
+
+
+@router.post("/outputs/file-drop/latest")
+async def export_latest_to_file_drop(limit: int = 20) -> list[dict[str, Any]]:
+    return FileDropExporter(pipeline.config, pipeline.repositories).export_latest(limit=limit)
 
 
 

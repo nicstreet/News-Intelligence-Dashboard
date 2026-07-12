@@ -1,0 +1,6 @@
+version: file-drop-1.0.0
+enabled: false
+output_dir: file_drop/outbox
+archive_dir: file_drop/archive
+error_dir: file_drop/error
+schema_version: "1.0.0"

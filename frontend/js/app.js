@@ -3,6 +3,11 @@
     result: null,
     sources: [],
     sourceFilings: [],
+    automation: null,
+    universe: null,
+    calibration: null,
+    fileDrop: null,
+    currentView: "overview",
     selectedStage: 0,
     selectedPanel: "signal",
     selectedJson: "raw_items",
@@ -27,6 +32,10 @@
     renderAll();
     refreshSources();
     refreshSourceFilings();
+    refreshAutomation();
+    refreshUniverse();
+    refreshCalibration();
+    refreshFileDrop();
     refreshRecent();
     refreshTestRuns();
     checkHealth(false);
@@ -45,7 +54,12 @@
       "health-check", "clear-state", "reload-fixtures", "simulate-failure", "raw-request",
       "raw-response", "copy-event-id", "copy-cluster-id", "start-test-run",
       "delete-current-test-run", "reset-development-data", "refresh-test-runs",
-      "active-test-run-id", "historical-test-runs"
+      "active-test-run-id", "historical-test-runs", "poll-due-sources",
+      "poll-world-news", "sidebar-start-test-run", "automation-status",
+      "refresh-automation", "refresh-universe", "universe-summary", "universe-table",
+      "refresh-calibration", "calibration-summary", "calibration-report",
+      "refresh-file-drop", "export-latest-file-drop", "file-drop-status",
+      "file-drop-result"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
     });
@@ -81,10 +95,18 @@
     });
     elements["copy-json"].addEventListener("click", () => copyText(elements["json-viewer"].textContent || ""));
     elements["download-json"].addEventListener("click", downloadJson);
-    elements["open-sources"].addEventListener("click", () => activatePanel("sources"));
+    elements["open-sources"].addEventListener("click", () => activateView("sources"));
     elements["refresh-recent"].addEventListener("click", refreshRecent);
     elements["poll-sec-edgar"].addEventListener("click", pollSecEdgar);
+    elements["poll-due-sources"].addEventListener("click", pollDueSources);
+    elements["poll-world-news"].addEventListener("click", pollWorldNews);
+    elements["sidebar-start-test-run"].addEventListener("click", startNewTestRun);
     elements["refresh-source-filings"].addEventListener("click", refreshSourceFilings);
+    elements["refresh-automation"].addEventListener("click", refreshAutomation);
+    elements["refresh-universe"].addEventListener("click", refreshUniverse);
+    elements["refresh-calibration"].addEventListener("click", refreshCalibration);
+    elements["refresh-file-drop"].addEventListener("click", refreshFileDrop);
+    elements["export-latest-file-drop"].addEventListener("click", exportLatestFileDrop);
     elements["recent-events"].addEventListener("click", loadRecentDetail);
     elements["health-check"].addEventListener("click", () => checkHealth(true));
     elements["start-test-run"].addEventListener("click", startNewTestRun);
@@ -96,6 +118,9 @@
     elements["simulate-failure"].addEventListener("click", toggleFailure);
     elements["copy-event-id"].addEventListener("click", () => copyText(currentEvent()?.event_id || ""));
     elements["copy-cluster-id"].addEventListener("click", () => copyText(currentCluster()?.cluster_id || ""));
+    document.querySelectorAll("[data-view]").forEach((button) => {
+      button.addEventListener("click", () => activateView(button.dataset.view));
+    });
   }
 
   function loadFixtureOptions() {
@@ -233,7 +258,12 @@
     renderJsonOptions();
     renderJson();
     renderSources();
+    renderAutomation();
+    renderUniverse();
+    renderCalibration();
+    renderFileDrop();
     renderDeveloper();
+    renderView();
   }
 
   function renderEventSummary() {
@@ -275,6 +305,24 @@
   function renderSources() {
     elements["source-status"].innerHTML = window.NewsRenderers.renderSources(state.sources);
     elements["source-filings"].innerHTML = window.NewsRenderers.renderSourceFilings(state.sourceFilings);
+  }
+
+  function renderAutomation() {
+    elements["automation-status"].innerHTML = window.NewsRenderers.renderAutomation(state.automation);
+  }
+
+  function renderUniverse() {
+    elements["universe-summary"].innerHTML = window.NewsRenderers.renderUniverseSummary(state.universe);
+    elements["universe-table"].innerHTML = window.NewsRenderers.renderUniverseTable(state.universe);
+  }
+
+  function renderCalibration() {
+    elements["calibration-summary"].innerHTML = window.NewsRenderers.renderCalibrationSummary(state.calibration);
+    elements["calibration-report"].innerHTML = window.NewsRenderers.renderCalibrationReport(state.calibration);
+  }
+
+  function renderFileDrop() {
+    elements["file-drop-status"].innerHTML = window.NewsRenderers.renderFileDropStatus(state.fileDrop);
   }
 
   function renderJsonOptions() {
@@ -364,6 +412,58 @@
     }
   }
 
+  async function refreshAutomation() {
+    try {
+      state.automation = await window.NewsApi.automationStatus();
+      renderAutomation();
+    } catch (error) {
+      state.automation = null;
+      if (!window.NewsApi.isMockMode()) {
+        showError(error);
+      }
+      renderAutomation();
+    }
+  }
+
+  async function refreshUniverse() {
+    try {
+      state.universe = await window.NewsApi.favouritesUniverse();
+      renderUniverse();
+    } catch (error) {
+      state.universe = null;
+      if (!window.NewsApi.isMockMode()) {
+        showError(error);
+      }
+      renderUniverse();
+    }
+  }
+
+  async function refreshCalibration() {
+    try {
+      state.calibration = await window.NewsApi.calibrationReport();
+      renderCalibration();
+    } catch (error) {
+      state.calibration = null;
+      if (!window.NewsApi.isMockMode()) {
+        showError(error);
+      }
+      renderCalibration();
+    }
+  }
+
+  async function refreshFileDrop() {
+    try {
+      state.fileDrop = await window.NewsApi.fileDropStatus();
+      renderFileDrop();
+    } catch (error) {
+      state.fileDrop = null;
+      if (!window.NewsApi.isMockMode()) {
+        showError(error);
+      }
+      renderFileDrop();
+    }
+  }
+
   async function pollSecEdgar() {
     hideError();
     setSecPollStatus("SEC: polling...", "processing");
@@ -373,6 +473,7 @@
       state.lastResponse = result;
       await refreshSources();
       await refreshSourceFilings();
+      await refreshAutomation();
       await refreshRecent();
       setSecPollStatus(`SEC: ${result.ingested_count || 0} new, ${result.skipped_count || 0} skipped`, "");
       renderDeveloper();
@@ -381,6 +482,51 @@
       showError(error);
     } finally {
       elements["poll-sec-edgar"].disabled = false;
+    }
+  }
+
+  async function pollWorldNews() {
+    hideError();
+    try {
+      const result = await window.NewsApi.pollWorldNews(true);
+      state.lastResponse = result;
+      await refreshSources();
+      await refreshSourceFilings();
+      await refreshAutomation();
+      await refreshRecent();
+      renderDeveloper();
+      activateView("sources");
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function pollDueSources() {
+    hideError();
+    try {
+      const result = await window.NewsApi.pollDueSources(false);
+      state.lastResponse = result;
+      await refreshSources();
+      await refreshSourceFilings();
+      await refreshAutomation();
+      await refreshRecent();
+      renderDeveloper();
+      activateView("sources");
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  async function exportLatestFileDrop() {
+    hideError();
+    try {
+      const result = await window.NewsApi.exportLatestFileDrop(20);
+      state.lastResponse = result;
+      elements["file-drop-result"].textContent = JSON.stringify(result, null, 2);
+      await refreshFileDrop();
+      renderDeveloper();
+    } catch (error) {
+      showError(error);
     }
   }
 
@@ -527,6 +673,27 @@
     const next = !window.NewsApi.isSimulatingFailure();
     window.NewsApi.setSimulateFailure(next);
     elements["simulate-failure"].textContent = next ? "Stop Simulated Failure" : "Simulate Backend Failure";
+  }
+
+  function activateView(name) {
+    if (!name) return;
+    state.currentView = name;
+    if (name === "sources") activatePanel("sources");
+    if (name === "json") activatePanel("json");
+    if (name === "developer") activatePanel("developer");
+    if (name === "signals") activatePanel("signal");
+    if (name === "events") activatePanel("cluster");
+    renderView();
+  }
+
+  function renderView() {
+    document.querySelectorAll("[data-view]").forEach((button) => {
+      button.classList.toggle("active", button.dataset.view === state.currentView);
+    });
+    document.querySelectorAll(".view-section").forEach((section) => {
+      const views = String(section.dataset.views || "").split(/\s+/);
+      section.classList.toggle("view-hidden", !views.includes(state.currentView));
+    });
   }
 
   function activatePanel(name) {

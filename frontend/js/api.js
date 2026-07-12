@@ -12,6 +12,13 @@ const MOCK_MODE = false;
     sources: "/sources/status",
     sourceFilings: "/sources/filings/recent",
     secEdgarPoll: "/sources/sec-edgar/poll",
+    worldNewsPoll: "/sources/world-news/poll",
+    pollDueSources: "/sources/poll-due",
+    automation: "/automation/status",
+    universe: "/universe/favourites",
+    calibration: "/calibration/report",
+    fileDropStatus: "/outputs/file-drop/status",
+    fileDropLatest: "/outputs/file-drop/latest",
     testRuns: "/test-runs",
     testRun: (testRunId) => `/test-runs/${encodeURIComponent(testRunId)}`,
     developmentData: "/development-data",
@@ -104,6 +111,59 @@ const MOCK_MODE = false;
     return request(`${ENDPOINTS.secEdgarPoll}${suffix}`, {method: "POST"});
   }
 
+  async function pollWorldNews(force) {
+    if (useMockMode()) {
+      return {source_name: "World News Monitor", ingested_count: 0, skipped_count: 0, items: []};
+    }
+    const suffix = force ? "?force=true" : "";
+    return request(`${ENDPOINTS.worldNewsPoll}${suffix}`, {method: "POST"});
+  }
+
+  async function pollDueSources(force) {
+    if (useMockMode()) {
+      return [];
+    }
+    const suffix = force ? "?force=true" : "";
+    return request(`${ENDPOINTS.pollDueSources}${suffix}`, {method: "POST"});
+  }
+
+  async function automationStatus() {
+    if (useMockMode()) {
+      return {enabled: false, sources: [], stale_count: 0, due_count: 0};
+    }
+    return request(ENDPOINTS.automation);
+  }
+
+  async function favouritesUniverse() {
+    if (useMockMode()) {
+      return {version: "mock", instruments: []};
+    }
+    return request(ENDPOINTS.universe);
+  }
+
+  async function calibrationReport() {
+    if (useMockMode()) {
+      return {profiles: [], signal_count: 0, outcome_status: "mock"};
+    }
+    return request(ENDPOINTS.calibration);
+  }
+
+  async function fileDropStatus() {
+    if (useMockMode()) {
+      return {enabled: false, output_dir: "mock"};
+    }
+    return request(ENDPOINTS.fileDropStatus);
+  }
+
+  async function exportLatestFileDrop(limit) {
+    if (useMockMode()) {
+      return [];
+    }
+    return request(`${ENDPOINTS.fileDropLatest}?limit=${encodeURIComponent(limit || 20)}`, {
+      method: "POST"
+    });
+  }
+
   async function health() {
     if (useMockMode()) {
       return {status: "ok", service: "mock"};
@@ -149,6 +209,13 @@ const MOCK_MODE = false;
     sourceStatus,
     sourceFilings,
     pollSecEdgar,
+    pollWorldNews,
+    pollDueSources,
+    automationStatus,
+    favouritesUniverse,
+    calibrationReport,
+    fileDropStatus,
+    exportLatestFileDrop,
     health,
     startTestRun,
     testRuns,

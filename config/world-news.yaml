@@ -1,0 +1,31 @@
+version: world-news-1.0.0
+source_name: World News Monitor
+source_type: newswire
+connector_type: world_news
+enabled: true
+poll_interval_seconds: 900
+country_or_region: global
+source_class: geopolitical_macro
+items:
+  - source_record_id: world_news:fixture:technology-export-controls
+    headline: US announces expanded technology export controls on advanced AI chips to China
+    body: The policy increases restrictions on advanced AI chip exports and may affect semiconductor supply chains, data-centre hardware demand and China-exposed technology shares.
+    published_at: "2026-07-11T08:30:00Z"
+    source_url: https://example.test/world-news/technology-export-controls
+    country: US
+    market: global
+    tickers: [NVDA, AMD, SMH, SEMG.L]
+    metadata:
+      region_scope: [US, China, Europe]
+      themes: [Semiconductors, Artificial Intelligence, Geopolitical]
+  - source_record_id: world_news:fixture:shipping-energy-disruption
+    headline: European energy infrastructure disruption raises regional power supply risk
+    body: Officials reported a significant energy infrastructure disruption, increasing uncertainty for regional utilities, clean-power infrastructure and broad European risk assets.
+    published_at: "2026-07-11T09:00:00Z"
+    source_url: https://example.test/world-news/europe-energy-disruption
+    country: Europe
+    market: Europe
+    tickers: [GRID.L, WREN.L, SPY, VIX]
+    metadata:
+      region_scope: [Europe, UK]
+      themes: [Energy Storage, Renewable Energy, Geopolitical]

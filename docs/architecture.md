@@ -29,7 +29,7 @@ External source
 -> NewsAnalysisResult
 -> SQLite repositories
 -> API/dashboard
--> future file-drop JSON exporter
+-> file-drop JSON exporter
 -> trading application
 ```
 
@@ -95,6 +95,8 @@ Current repositories:
 - `signal_snapshots`
 - `source_filings`
 - `source_status`
+
+Generic non-filing source records are stored through the same source-record repository in this MVP. SEC-specific filing fields remain available on SEC records.
 
 This boundary is intended to be replaceable later with PostgreSQL or a message/event store.
 
@@ -166,4 +168,3 @@ News pipeline
 ```
 
 This keeps the news service independent from trading-process lifecycle and allows the ingestion model in the trading app to be rebuilt around a clean JSON contract.
-

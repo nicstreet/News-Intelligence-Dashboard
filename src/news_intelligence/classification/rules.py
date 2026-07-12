@@ -6,9 +6,11 @@ from typing import Any
 
 from news_intelligence.config import NewsIntelligenceConfig
 from news_intelligence.models import (
+    ContentQuality,
     Direction,
     EventStatus,
     EventType,
+    HistoricalCalibrationSummary,
     NewsAnalysis,
     NewsEvent,
     NewsTimestamps,
@@ -69,9 +71,31 @@ class RuleBasedEventClassifier:
                 directional_strength=float(rule.get("directional_strength", 0.0)),
                 confidence=confidence,
                 quality=quality,
+                raw_sentiment=float(
+                    rule.get("raw_sentiment", rule.get("directional_strength", 0.0))
+                ),
+                event_impact=abs(float(rule.get("directional_strength", 0.0))),
                 surprise=float(rule.get("surprise", 0.0)),
                 novelty=float(rule.get("novelty", 0.0)),
+                specificity=float(rule.get("specificity", 0.75)),
+                certainty=confidence,
+                urgency=float(rule.get("urgency", 0.45)),
                 expected_persistence=str(rule.get("expected_persistence", "intraday")),
+                expected_time_horizon_minutes=self._expected_time_horizon_minutes(
+                    str(rule.get("expected_persistence", "intraday"))
+                ),
+            ),
+            content_quality=ContentQuality(
+                is_rumour=event_type == EventType.RUMOUR_UNCONFIRMED
+                or event_status == EventStatus.UNCONFIRMED,
+                is_opinion=item.source.source_type in {"blog", "commentary", "opinion"},
+                contains_primary_statement=item.source.source_type
+                in {"company", "regulatory", "central_bank", "exchange"},
+                contradiction_detected=bool(rule.get("contradictions_detected", False)),
+            ),
+            historical_calibration=HistoricalCalibrationSummary(
+                calibration_profile=f"{event_type.value}_{rule.get('event_subtype', 'unknown')}",
+                historical_reliability=float(rule.get("historical_reliability", 0.65)),
             ),
             strategy_roles=[
                 StrategyRole(str(role)) for role in rule.get("roles", ["RISK_OVERLAY"])
@@ -130,3 +154,11 @@ class RuleBasedEventClassifier:
             if first_sentence:
                 return first_sentence[:360]
         return item.headline
+
+    def _expected_time_horizon_minutes(self, expected_persistence: str) -> int:
+        mapping = {
+            "intraday": 480,
+            "multi_day": 4320,
+            "multi_week": 20160,
+        }
+        return mapping.get(expected_persistence, 480)

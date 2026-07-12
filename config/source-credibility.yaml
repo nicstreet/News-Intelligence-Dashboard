@@ -36,6 +36,13 @@ sources:
     connector_type: sec_edgar
     enabled: true
     status: OK
+  World News Monitor:
+    source_type: newswire
+    credibility: 0.82
+    country_or_region: global
+    connector_type: world_news
+    enabled: true
+    status: OK
   Market Blog:
     source_type: blog
     credibility: 0.45

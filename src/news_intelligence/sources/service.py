@@ -10,7 +10,7 @@ from news_intelligence.models import (
     SourceIngestionRun,
 )
 from news_intelligence.pipeline import NewsIntelligencePipeline
-from news_intelligence.sources.base import SourceAdapter
+from news_intelligence.sources.base import SourceAdapter, SourceRecord
 
 
 class SourceIngestionService:
@@ -34,26 +34,27 @@ class SourceIngestionService:
                     ingested_count=0,
                     skipped_count=0,
                     error_count=0,
+                    items=[],
                     filings=[],
                     status=status,
                 )
 
         known_ids = self._known_source_record_ids(adapter.connector_type)
         errors: list[str] = []
-        fetched_filings: list[SourceIngestedFiling] = []
-        ingested_filings: list[SourceIngestedFiling] = []
+        fetched_items: list[SourceRecord] = []
+        ingested_items: list[SourceRecord] = []
         skipped_count = 0
         try:
-            fetched_filings = list(adapter.fetch(known_ids))
-            for filing in fetched_filings:
-                if self._repositories.source_filings.get(filing.source_record_id) is not None:
+            fetched_items = list(adapter.fetch(known_ids))
+            for source_item in fetched_items:
+                if self._repositories.source_filings.get(source_item.source_record_id) is not None:
                     skipped_count += 1
                     continue
-                raw_item = adapter.to_raw_news_item(filing)
+                raw_item = adapter.to_raw_news_item(source_item)
                 result = self._pipeline.analyse([raw_item], persist=True)
                 event = result.events[0] if result.events else None
                 cluster = result.clusters[0] if result.clusters else None
-                stored_filing = filing.model_copy(
+                stored_item = source_item.model_copy(
                     update={
                         "raw_id": (
                             result.raw_items[0].raw_id
@@ -64,16 +65,16 @@ class SourceIngestionService:
                         "cluster_id": cluster.cluster_id if cluster else None,
                         "record_environment": self._runtime_environment(),
                         "metadata": {
-                            **filing.metadata,
+                            **source_item.metadata,
                             "analysis_request_id": result.request_id,
                         },
                     }
                 )
                 self._repositories.source_filings.save(
-                    stored_filing.source_record_id,
-                    stored_filing,
+                    stored_item.source_record_id,
+                    stored_item,
                 )
-                ingested_filings.append(stored_filing)
+                ingested_items.append(stored_item)
         except Exception as exc:
             errors.append(str(exc))
 
@@ -82,20 +83,24 @@ class SourceIngestionService:
             adapter=adapter,
             previous_status=previous_status,
             completed_at=completed_at,
-            ingested_count=len(ingested_filings),
+            ingested_count=len(ingested_items),
             errors=errors,
         )
         self._repositories.source_status.save(adapter.adapter_id, status)
+        ingested_filings = [
+            item for item in ingested_items if isinstance(item, SourceIngestedFiling)
+        ]
         return SourceIngestionRun(
             source_name=adapter.source_name,
             connector_type=adapter.connector_type,
             started_at=started_at,
             completed_at=completed_at,
-            fetched_count=len(fetched_filings),
-            ingested_count=len(ingested_filings),
+            fetched_count=len(fetched_items),
+            ingested_count=len(ingested_items),
             skipped_count=skipped_count,
             error_count=len(errors),
             errors=errors,
+            items=ingested_items,
             filings=ingested_filings,
             status=status,
         )
@@ -106,8 +111,8 @@ class SourceIngestionService:
             return stored
         return SourceConnectorStatus(
             source_name=adapter.source_name,
-            country_or_region="US",
-            source_class="regulatory",
+            country_or_region=str(getattr(adapter, "country_or_region", "unknown")),
+            source_class=str(getattr(adapter, "source_class", "unknown")),
             connector_type=adapter.connector_type,
             enabled=adapter.enabled,
             current_status=(
@@ -142,8 +147,8 @@ class SourceIngestionService:
         previous_items = previous_status.items_ingested if previous_status is not None else 0
         return SourceConnectorStatus(
             source_name=adapter.source_name,
-            country_or_region="US",
-            source_class="regulatory",
+            country_or_region=str(getattr(adapter, "country_or_region", "unknown")),
+            source_class=str(getattr(adapter, "source_class", "unknown")),
             connector_type=adapter.connector_type,
             enabled=adapter.enabled,
             current_status=SourceConnectorState.ERROR if errors else SourceConnectorState.OK,

@@ -44,13 +44,32 @@ class InstrumentRelationshipResolver:
 
         unique_entities = self._deduplicate(entities)
         primary_symbol = self._primary_symbol(detected_symbols, unique_entities)
+        event_scope = self._event_scope(unique_entities)
         return event.model_copy(
-            update={"entities": unique_entities, "primary_symbol": primary_symbol}
+            update={
+                "entities": unique_entities,
+                "primary_symbol": primary_symbol,
+                "event_scope": event_scope,
+            }
         )
 
     def _relationship_chain(self, symbol: str, evidence: str) -> list[ResolvedEntity]:
         instruments = self._config.instrument_relationships.get("instruments", {})
         if not isinstance(instruments, dict) or symbol not in instruments:
+            favourite = self._config.favourite_by_symbol(symbol)
+            if favourite:
+                entity_type = self._favourite_entity_type(favourite)
+                return [
+                    ResolvedEntity(
+                        entity_type=entity_type,
+                        symbol=str(favourite.get("symbol", symbol)).upper(),
+                        name=str(favourite.get("name", "")) or None,
+                        relationship="direct",
+                        scope=entity_type,
+                        relevance=1.0,
+                        evidence=evidence,
+                    )
+                ]
             return [
                 ResolvedEntity(
                     entity_type=ScopeType.INSTRUMENT,
@@ -123,3 +142,19 @@ class InstrumentRelationshipResolver:
             if entity.symbol:
                 return entity.symbol
         return None
+
+    def _favourite_entity_type(self, favourite: dict[str, Any]) -> ScopeType:
+        instrument_type = str(favourite.get("instrument_type", "")).lower()
+        if instrument_type == "etf":
+            return ScopeType.ETF
+        if instrument_type == "index":
+            return ScopeType.GLOBAL_MARKET
+        return ScopeType.INSTRUMENT
+
+    def _event_scope(self, entities: list[ResolvedEntity]) -> ScopeType:
+        if not entities:
+            return ScopeType.GLOBAL_MARKET
+        for entity in entities:
+            if entity.relationship == "direct":
+                return entity.scope
+        return entities[0].scope

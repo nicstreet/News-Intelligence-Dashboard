@@ -16,7 +16,9 @@ def test_public_json_schema_export_contains_required_contracts() -> None:
         "InstrumentNewsImpact",
         "NewsSignal",
         "ProcessingLineage",
+        "FavouritesUniverse",
         "SourceConnectorStatus",
+        "SourceIngestedItem",
         "SourceIngestedFiling",
         "SourceIngestionRun",
     ]:

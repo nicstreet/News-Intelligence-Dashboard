@@ -9,6 +9,9 @@ Implemented:
 - `SEC EDGAR`
 - configured US shares: `NVDA`, `AMD`, `AAPL`, `XOM`, `JPM`, `MRNA`, `BA`
 - form scope: `8-K`
+- `World News Monitor`
+- controlled JSON source for market-relevant geopolitical and macro records
+- first scope: US, UK, China, Europe, and global-market risk themes
 
 Planned:
 
@@ -40,6 +43,8 @@ class SourceAdapter(Protocol):
 ```
 
 The interface is deliberately small. Source-specific complexity should stay inside the adapter.
+
+The service now supports generic `SourceIngestedItem` records as well as SEC-specific `SourceIngestedFiling` records. SEC filing fields remain available for the filing dashboard, while non-filing feeds can preserve source lineage without pretending to be filings.
 
 ## Adapter Responsibilities
 
@@ -163,3 +168,10 @@ A new source adapter is acceptable when:
 - source status is visible in the dashboard/API
 - repeat polling does not create duplicates or unexpected backfill
 
+Current implemented endpoints:
+
+- `POST /sources/sec-edgar/poll`
+- `POST /sources/world-news/poll`
+- `POST /sources/poll-due`
+- `GET /sources/status`
+- `GET /automation/status`

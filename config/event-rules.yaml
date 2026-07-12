@@ -217,6 +217,68 @@ rules:
     expected_persistence: intraday
     roles: [RISK_OVERLAY, VETO]
     contradictions_detected: true
+  - id: technology_export_controls
+    priority: 119
+    event_group: geopolitical_technology_controls
+    event_type: geopolitical
+    event_subtype: technology_export_controls
+    event_status: confirmed
+    match:
+      all: ["export controls"]
+      any: ["ai chips", "advanced chips", "technology exports", "china"]
+    direction: bearish
+    directional_strength: -0.42
+    confidence: 0.74
+    quality: 0.82
+    surprise: 0.52
+    novelty: 0.66
+    specificity: 0.82
+    urgency: 0.64
+    historical_reliability: 0.62
+    expected_persistence: multi_day
+    roles: [RISK_OVERLAY, VETO]
+    additional_entities:
+      - {entity_type: etf, symbol: SMH, relationship: sector_exposure, scope: sector, relevance: 0.68, multiplier: 1.0}
+      - {entity_type: etf, symbol: SEMG.L, relationship: sector_exposure, scope: sector, relevance: 0.55, multiplier: 1.0}
+      - {entity_type: etf, symbol: QQQ, relationship: index_constituent, scope: global_market, relevance: 0.32, multiplier: 1.0}
+      - {entity_type: global_market, symbol: VIX, relationship: risk_proxy, scope: global_market, relevance: 0.28, multiplier: -1.0}
+    impact_overrides:
+      NVDA: {direction: bearish, directional_strength: -0.38, relevance: 1.0, confidence: 0.72, reason: "Advanced chip export controls can restrict China-exposed AI accelerator demand."}
+      AMD: {direction: bearish, directional_strength: -0.3, relevance: 0.86, confidence: 0.68, reason: "Advanced chip export controls can affect GPU and accelerator sales."}
+      SMH: {direction: bearish, directional_strength: -0.22, relevance: 0.68, confidence: 0.66, reason: "Semiconductor ETF exposure is affected through constituent revenue and supply-chain risk."}
+      SEMG.L: {direction: bearish, directional_strength: -0.2, relevance: 0.55, confidence: 0.62, reason: "Global semiconductor UCITS exposure may react to technology trade restrictions."}
+      QQQ: {direction: bearish, directional_strength: -0.08, relevance: 0.32, confidence: 0.54, reason: "Large technology index exposure can be modestly pressured by geopolitical technology restrictions."}
+      VIX: {direction: bullish, directional_strength: 0.16, relevance: 0.28, confidence: 0.56, reason: "Geopolitical technology restrictions can lift risk-premium and implied volatility."}
+  - id: geopolitical_energy_disruption
+    priority: 117
+    event_group: geopolitical_energy
+    event_type: geopolitical
+    event_subtype: energy_infrastructure_disruption
+    event_status: confirmed
+    match:
+      all: ["energy infrastructure disruption"]
+      any: ["european", "regional power", "supply risk", "utilities"]
+    direction: mixed
+    directional_strength: -0.24
+    confidence: 0.72
+    quality: 0.8
+    surprise: 0.58
+    novelty: 0.62
+    specificity: 0.72
+    urgency: 0.74
+    historical_reliability: 0.6
+    expected_persistence: multi_day
+    roles: [RISK_OVERLAY, VETO]
+    additional_entities:
+      - {entity_type: etf, symbol: GRID.L, relationship: thematic_exposure, scope: sector, relevance: 0.62, multiplier: -1.0}
+      - {entity_type: etf, symbol: WREN.L, relationship: thematic_exposure, scope: sector, relevance: 0.48, multiplier: -1.0}
+      - {entity_type: global_market, symbol: VIX, relationship: risk_proxy, scope: global_market, relevance: 0.34, multiplier: -1.0}
+      - {entity_type: etf, symbol: SPY, relationship: broad_market_risk, scope: global_market, relevance: 0.18, multiplier: -1.0}
+    impact_overrides:
+      GRID.L: {direction: bearish, directional_strength: -0.24, relevance: 0.62, confidence: 0.64, reason: "Grid and power infrastructure exposure may face elevated regional risk."}
+      WREN.L: {direction: bearish, directional_strength: -0.16, relevance: 0.48, confidence: 0.58, reason: "Renewable-energy infrastructure can be affected by regional power disruption."}
+      VIX: {direction: bullish, directional_strength: 0.18, relevance: 0.34, confidence: 0.58, reason: "Major geopolitical energy disruption can raise implied volatility."}
+      SPY: {direction: bearish, directional_strength: -0.05, relevance: 0.18, confidence: 0.46, reason: "Broad US market impact is indirect unless risk appetite deteriorates."}
   - id: sec_8k_current_report
     priority: 60
     event_group: sec_filing

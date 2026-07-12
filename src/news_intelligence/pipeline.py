@@ -450,6 +450,7 @@ class NewsIntelligencePipeline:
                                 "article_count": cluster.article_count,
                                 "duplicate_count": cluster.duplicate_count,
                                 "independent_source_count": cluster.independent_source_count,
+                                "update_count": cluster.update_count,
                             }
                         )
                     }
@@ -488,6 +489,7 @@ class NewsIntelligencePipeline:
                     event_status=event.event_status,
                     direction=primary_signal.signal.direction,
                     directional_strength=primary_signal.signal.directional_strength,
+                    signal_score=primary_signal.signal.signal_score,
                     confidence=primary_signal.signal.confidence,
                     quality=primary_signal.signal.quality,
                     reason=event.event_subtype,
@@ -532,6 +534,7 @@ class NewsIntelligencePipeline:
             event_status=event_version.event_status,
             direction=signal_direction,
             directional_strength=event_version.directional_strength,
+            signal_score=round(event_version.directional_strength * 100, 2),
             confidence=event_version.confidence,
             quality=event_version.quality,
             reason=event_version.event_subtype,

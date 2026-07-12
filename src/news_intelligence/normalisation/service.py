@@ -93,4 +93,23 @@ class NewsNormaliser:
                 if any(alias and normalise_text(alias) in text for alias in aliases):
                     candidates.add(str(symbol).upper())
 
+        for profile in self._config.favourite_instruments():
+            symbol = str(profile.get("symbol", "")).upper()
+            aliases_config = profile.get("aliases", [])
+            aliases_list = aliases_config if isinstance(aliases_config, list) else []
+            aliases = [
+                str(profile.get("name", "")),
+                *[str(alias) for alias in aliases_list],
+            ]
+            if any(self._alias_matches_text(alias, text) for alias in aliases):
+                candidates.add(symbol)
+
         return sorted(symbol for symbol in candidates if symbol)
+
+    def _alias_matches_text(self, alias: str, text: str) -> bool:
+        normalised_alias = normalise_text(alias)
+        if not normalised_alias:
+            return False
+        if len(normalised_alias) <= 3:
+            return re.search(rf"\b{re.escape(normalised_alias)}\b", text) is not None
+        return normalised_alias in text

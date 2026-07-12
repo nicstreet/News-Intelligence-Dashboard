@@ -4,6 +4,8 @@ The planned trading-app integration is a cleansed JSON file drop. Asterius News 
 
 This keeps the news service independent from the trading app lifecycle and avoids coupling ingestion to dashboard state or internal SQLite tables.
 
+Current implementation status: the project now includes a file-drop output adapter configured by `config/file-drop.yaml`. It can export one signal or the latest signals through the API and writes atomically via a `.tmp` file followed by a `.json` rename. The payload remains subject to final review before rebuilding the trading-app ingestion model.
+
 ## Integration Shape
 
 ```text
@@ -250,4 +252,3 @@ The trading app should:
 ## Rebuild Note
 
 The trading app ingestion model should be rebuilt after this contract is finalised. Until then, the news service should treat file-drop integration as a planned output adapter rather than a committed production interface.
-

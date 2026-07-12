@@ -2,6 +2,8 @@
 
 Historical calibration is planned for `v0.4`. The goal is to measure how event types, source quality, surprise, confirmation status, and affected instruments relate to subsequent market behaviour.
 
+Current implementation status: the project now has a favourites-universe scoped calibration report scaffold at `GET /calibration/report`. It groups persisted favourite-universe signals by event profile and exposes the intended outcome windows and confounder grades. It does not yet join market data or update live scoring automatically.
+
 ## Purpose
 
 Current scoring is deterministic and rule-based. Calibration should turn observed outcomes into better priors and thresholds while preserving the deterministic pipeline as the explainable baseline.
@@ -144,6 +146,13 @@ The first implementation can be offline and file-based. It does not need to run 
 - Generate a versioned calibration report.
 - Do not modify live scoring automatically.
 
+Implemented first slice:
+
+- favourites universe config in `config/favourites.yaml`
+- calibration report endpoint at `GET /calibration/report`
+- report scaffolding with fixed outcome windows
+- no automatic live-score mutation
+
 ## Later Extensions
 
 - per-symbol and per-sector calibration
@@ -153,4 +162,3 @@ The first implementation can be offline and file-based. It does not need to run 
 - volatility and liquidity filters
 - walk-forward validation
 - optional ML model trained from deterministic labels
-

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +20,12 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return payload
 
 
+def _load_optional_yaml(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    return _load_yaml(path)
+
+
 @dataclass(frozen=True)
 class NewsIntelligenceConfig:
     root: Path
@@ -29,6 +35,10 @@ class NewsIntelligenceConfig:
     freshness_half_lives: dict[str, Any]
     runtime: dict[str, Any]
     sec_edgar: dict[str, Any]
+    favourites: dict[str, Any] = field(default_factory=dict)
+    world_news: dict[str, Any] = field(default_factory=dict)
+    automation: dict[str, Any] = field(default_factory=dict)
+    file_drop: dict[str, Any] = field(default_factory=dict)
 
     @property
     def rules_version(self) -> str:
@@ -79,9 +89,33 @@ class NewsIntelligenceConfig:
 
     def known_symbols(self) -> set[str]:
         instruments = self.instrument_relationships.get("instruments", {})
-        if not isinstance(instruments, dict):
-            return set()
-        return {str(symbol).upper() for symbol in instruments}
+        known: set[str] = set()
+        if isinstance(instruments, dict):
+            known.update(str(symbol).upper() for symbol in instruments)
+        for instrument in self.favourite_instruments():
+            known.add(str(instrument.get("symbol", "")).upper())
+            aliases = instrument.get("aliases", [])
+            if isinstance(aliases, list):
+                known.update(str(alias).upper() for alias in aliases if alias)
+        return {symbol for symbol in known if symbol}
+
+    def favourite_instruments(self) -> list[dict[str, Any]]:
+        instruments = self.favourites.get("instruments", [])
+        if not isinstance(instruments, list):
+            return []
+        return [item for item in instruments if isinstance(item, dict)]
+
+    def favourite_by_symbol(self, symbol: str) -> dict[str, Any]:
+        wanted = symbol.upper()
+        for instrument in self.favourite_instruments():
+            canonical = str(instrument.get("symbol", "")).upper()
+            aliases = instrument.get("aliases", [])
+            alias_values: set[str] = set()
+            if isinstance(aliases, list):
+                alias_values = {str(alias).upper() for alias in aliases if alias}
+            if wanted == canonical or wanted in alias_values:
+                return instrument
+        return {}
 
     def source_profile(self, source_name: str) -> dict[str, Any]:
         sources = self.source_credibility.get("sources", {})
@@ -126,4 +160,8 @@ def load_config(config_dir: Path | None = None) -> NewsIntelligenceConfig:
         freshness_half_lives=_load_yaml(directory / "freshness-half-lives.yaml"),
         runtime=_load_yaml(directory / "runtime.yaml"),
         sec_edgar=_load_yaml(directory / "sec-edgar.yaml"),
+        favourites=_load_optional_yaml(directory / "favourites.yaml"),
+        world_news=_load_optional_yaml(directory / "world-news.yaml"),
+        automation=_load_optional_yaml(directory / "automation.yaml"),
+        file_drop=_load_optional_yaml(directory / "file-drop.yaml"),
     )
