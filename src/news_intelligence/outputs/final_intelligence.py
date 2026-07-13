@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +24,13 @@ class FinalIntelligenceOutputService:
         self._config = config
         self._repositories = repositories
 
-    def records(self, *, limit: int = 500) -> list[dict[str, Any]]:
+    def records(
+        self,
+        *,
+        limit: int = 500,
+        start: date | None = None,
+        end: date | None = None,
+    ) -> list[dict[str, Any]]:
         outcomes = JoinedOutcomeAnalysisService(
             self._repositories,
             FavouritesUniverseService(self._config),
@@ -49,11 +56,22 @@ class FinalIntelligenceOutputService:
                     signal=signal,
                 )
             )
+        records = [
+            record
+            for record in records
+            if self._record_in_date_range(record, start=start, end=end)
+        ]
         records.sort(key=lambda record: str(record.get("event_time", "")), reverse=True)
         return records
 
-    def list_output(self, *, limit: int = 500) -> dict[str, Any]:
-        records = self.records(limit=limit)
+    def list_output(
+        self,
+        *,
+        limit: int = 500,
+        start: date | None = None,
+        end: date | None = None,
+    ) -> dict[str, Any]:
+        records = self.records(limit=limit, start=start, end=end)
         stored = {
             str(payload.get("record_id")): payload
             for payload in self._repositories.final_outputs.list_recent(limit)
@@ -84,11 +102,13 @@ class FinalIntelligenceOutputService:
         *,
         limit: int = 500,
         run_id: str | None = None,
+        start: date | None = None,
+        end: date | None = None,
     ) -> dict[str, Any]:
         output_dir = self._output_dir()
         output_dir.mkdir(parents=True, exist_ok=True)
         started_at = now_utc()
-        records = self.records(limit=limit)
+        records = self.records(limit=limit, start=start, end=end)
         exported: list[dict[str, Any]] = []
         skipped: list[dict[str, Any]] = []
         run_identifier = run_id or stable_hash(started_at.isoformat(), prefix="run_", length=12)
@@ -119,6 +139,10 @@ class FinalIntelligenceOutputService:
             "schema_version": "1.0.0",
             "producer": "asterius_news_intelligence",
             "run_id": run_identifier,
+            "date_range": {
+                "from": start.isoformat() if start else None,
+                "to": end.isoformat() if end else None,
+            },
             "started_at": started_at.isoformat(),
             "completed_at": now_utc().isoformat(),
             "records_considered": len(records),
@@ -210,6 +234,31 @@ class FinalIntelligenceOutputService:
     def _content_hash(self, payload: dict[str, Any]) -> str:
         clean = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
         return stable_hash(clean, prefix="sha256_", length=24)
+
+    def _record_in_date_range(
+        self,
+        record: dict[str, Any],
+        *,
+        start: date | None,
+        end: date | None,
+    ) -> bool:
+        if start is None and end is None:
+            return True
+        event_time = self._parse_datetime(record.get("event_time"))
+        if event_time is None:
+            return False
+        event_date = event_time.date()
+        if start is not None and event_date < start:
+            return False
+        return not (end is not None and event_date > end)
+
+    def _parse_datetime(self, value: Any) -> datetime | None:
+        if not isinstance(value, str):
+            return None
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
 
     def _filename(self, record: dict[str, Any], content_hash: str) -> str:
         symbol = str(record.get("instrument", {}).get("symbol", "UNKNOWN")).replace(".", "_")

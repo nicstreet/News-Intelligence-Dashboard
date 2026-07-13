@@ -23,6 +23,7 @@
     selectedJson: "raw_items",
     impactSort: "symbol",
     rawMode: false,
+    backfillResult: null,
     activeTestRunId: localStorage.getItem("newsIntelligenceActiveTestRunId") || "",
     testRuns: [],
     lastRequest: null,
@@ -35,6 +36,7 @@
 
   function init() {
     bindElements();
+    initialiseBackfillDates();
     loadFixtureOptions();
     bindEvents();
     updateModeStatus();
@@ -60,6 +62,7 @@
       "options-developer", "options-refresh-dashboard", "fixture-selector", "load-fixture", "news-form",
       "refresh-intelligence", "intelligence-run-status", "intelligence-toggle-table",
       "intelligence-toggle-json", "intelligence-output-table", "intelligence-output-json",
+      "backfill-from", "backfill-to", "run-intelligence-backfill", "intelligence-backfill-status",
       "toggle-input-mode", "structured-input", "json-input-wrap", "raw-json", "headline",
       "body", "source-name", "source-type", "source-url", "published-at", "known-ticker",
       "country", "market", "clear-form", "event-summary", "pipeline", "impact-sort",
@@ -94,6 +97,7 @@
   function bindEvents() {
     elements["load-fixture"].addEventListener("click", () => loadFixture(elements["fixture-selector"].value));
     elements["refresh-intelligence"].addEventListener("click", () => refreshIntelligence(true));
+    elements["run-intelligence-backfill"].addEventListener("click", runIntelligenceBackfill);
     elements["intelligence-toggle-table"].addEventListener("click", () => setIntelligenceMode("table"));
     elements["intelligence-toggle-json"].addEventListener("click", () => setIntelligenceMode("json"));
     elements["fixture-selector"].addEventListener("change", () => {
@@ -599,6 +603,53 @@
     }
   }
 
+  async function runIntelligenceBackfill() {
+    hideError();
+    const from = elements["backfill-from"].value;
+    const to = elements["backfill-to"].value;
+    if (!from || !to) {
+      showError({stage: "Backfill", message: "Enter both from and to dates.", requestId: "not submitted"});
+      return;
+    }
+    if (to < from) {
+      showError({stage: "Backfill", message: "The to date must be on or after the from date.", requestId: "not submitted"});
+      return;
+    }
+    setBackfillStatus("Backfill: running...", "processing");
+    elements["run-intelligence-backfill"].disabled = true;
+    try {
+      const result = await window.NewsApi.intelligenceBackfill({
+        from,
+        to,
+        source: "eodhd_news",
+        export_delta: true,
+        limit: 5000
+      });
+      state.backfillResult = result;
+      state.lastResponse = result;
+      state.intelligence = result.output || await window.NewsApi.intelligenceOutput();
+      renderIntelligence();
+      await refreshSources();
+      await refreshSourceFilings();
+      await refreshAutomation();
+      await refreshRecent();
+      await refreshCalibration();
+      await refreshFileDrop();
+      await refreshMarketData();
+      await refreshStorage();
+      renderDeveloper();
+      setBackfillStatus(
+        `Backfill: ${result.ingested_count || 0} ingested, ${result.exported_count || 0} exported`,
+        ""
+      );
+    } catch (error) {
+      setBackfillStatus("Backfill: failed", "error");
+      showError(error);
+    } finally {
+      elements["run-intelligence-backfill"].disabled = false;
+    }
+  }
+
   async function refreshAutomation() {
     try {
       state.automation = await window.NewsApi.automationStatus();
@@ -1099,6 +1150,14 @@
     status.classList.toggle("error", stateClass === "error");
   }
 
+  function setBackfillStatus(message, stateClass) {
+    const status = elements["intelligence-backfill-status"];
+    status.textContent = message;
+    status.classList.toggle("muted", !stateClass);
+    status.classList.toggle("processing", stateClass === "processing");
+    status.classList.toggle("error", stateClass === "error");
+  }
+
   function showError(error) {
     elements["error-panel"].innerHTML = window.NewsRenderers.renderError(error);
     elements["error-panel"].classList.remove("hidden");
@@ -1121,6 +1180,17 @@
       if (!layer.adjustable || state.storageRetention[layer.layer_key]) return;
       state.storageRetention[layer.layer_key] = Number(layer.retention_days || 365);
     });
+  }
+
+  function initialiseBackfillDates() {
+    const now = new Date();
+    const year = now.getFullYear();
+    if (elements["backfill-from"] && !elements["backfill-from"].value) {
+      elements["backfill-from"].value = `${year}-01-01`;
+    }
+    if (elements["backfill-to"] && !elements["backfill-to"].value) {
+      elements["backfill-to"].value = now.toISOString().slice(0, 10);
+    }
   }
 
   function updateStorageRetention(event) {

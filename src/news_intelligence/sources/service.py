@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import datetime
 
 from news_intelligence.models import (
@@ -42,10 +43,48 @@ class SourceIngestionService:
         known_ids = self._known_source_record_ids(adapter.connector_type)
         errors: list[str] = []
         fetched_items: list[SourceRecord] = []
-        ingested_items: list[SourceRecord] = []
-        skipped_count = 0
         try:
             fetched_items = list(adapter.fetch(known_ids))
+        except Exception as exc:
+            errors.append(str(exc))
+        return self._ingest_fetched(
+            adapter=adapter,
+            previous_status=previous_status,
+            started_at=started_at,
+            fetched_items=fetched_items,
+            fetch_errors=errors,
+        )
+
+    def ingest_fetched(
+        self,
+        adapter: SourceAdapter,
+        fetched_items: Sequence[SourceRecord],
+    ) -> SourceIngestionRun:
+        return self._ingest_fetched(
+            adapter=adapter,
+            previous_status=self._stored_status(adapter.adapter_id),
+            started_at=self._pipeline.clock(),
+            fetched_items=list(fetched_items),
+            fetch_errors=[],
+        )
+
+    def known_source_record_ids(self, connector_type: str) -> set[str]:
+        return self._known_source_record_ids(connector_type)
+
+    def _ingest_fetched(
+        self,
+        *,
+        adapter: SourceAdapter,
+        previous_status: SourceConnectorStatus | None,
+        started_at: datetime,
+        fetched_items: list[SourceRecord],
+        fetch_errors: list[str],
+    ) -> SourceIngestionRun:
+        errors: list[str] = []
+        ingested_items: list[SourceRecord] = []
+        skipped_count = 0
+        errors.extend(fetch_errors)
+        try:
             for source_item in fetched_items:
                 if self._repositories.source_filings.get(source_item.source_record_id) is not None:
                     skipped_count += 1

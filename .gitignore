@@ -18,6 +18,7 @@ dist/
 *.sqlite3
 *.db
 *.log
+file_drop/
 .env
 .env.*
 

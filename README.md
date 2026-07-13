@@ -103,7 +103,8 @@ For the normal user workflow:
 2. Wait for the `Intelligence` view to finish its automatic update cycle.
 3. Review the clean output table, or toggle to raw JSON.
 4. Use `Update Now` to run the same delta cycle manually.
-5. Consume exported JSON from the configured file-drop outbox.
+5. For historical exports, enter a `From` and `To` date in the Intelligence view and run `Backfill`.
+6. Consume exported JSON from the configured file-drop outbox.
 
 Diagnostic views remain available for source, event, market-data, calibration and JSON audit inspection.
 
@@ -211,6 +212,7 @@ Implemented endpoints:
 | `POST` | `/automation/run-now` | Run due-source polling and configured retention housekeeping immediately |
 | `GET` | `/intelligence/output` | List clean user-facing intelligence output records |
 | `POST` | `/intelligence/refresh` | Run source deltas, market-data joins, final output build and delta JSON export |
+| `POST` | `/intelligence/backfill` | Fetch EODHD news for a date range, run the normal intelligence cycle and export date-scoped JSON deltas |
 | `GET` | `/calibration/report` | Build the current calibration profile report |
 | `GET` | `/calibration/outcomes` | Join persisted news signals to cached market data and calculate forward returns |
 | `POST` | `/market-data/eodhd/fetch` | Fetch and cache bounded EODHD daily or intraday bars |
@@ -367,6 +369,20 @@ The favourites universe is configured in `config/favourites.yaml`. It currently 
 World-news ingestion is configured in `config/world-news.yaml`. The current adapter is a controlled JSON source for market-relevant geopolitical and macro records covering the US, UK, China, Europe, and global-market risk themes.
 
 EODHD financial-news ingestion is configured under `news` in `config/eodhd.yaml`. It uses the same ignored local token mechanism as market-data access.
+
+Historical EODHD financial-news backfills use the same connector and output pipeline as the live refresh. A request such as:
+
+```json
+{
+  "from": "2021-01-01",
+  "to": "2021-12-31",
+  "source": "eodhd_news",
+  "export_delta": true,
+  "limit": 5000
+}
+```
+
+fetches news in that period, prevents duplicate source records, runs the normal event pipeline, refreshes available market-data joins and writes a date-scoped export manifest.
 
 Official RSS/Atom source expansion is configured in `config/official-sources.yaml`. The registry includes the first wave of core markets and placeholders for further regional disclosure/macro authorities. Enable only feeds with verified URLs and acceptable usage terms.
 

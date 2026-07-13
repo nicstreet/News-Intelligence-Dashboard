@@ -32,6 +32,7 @@ automation_runner: SourceAutomationBackgroundRunner | None = None
 NEWS_PAYLOAD = Body(...)
 RETENTION_PAYLOAD = Body(default=None)
 MARKET_DATA_PAYLOAD = Body(...)
+BACKFILL_PAYLOAD = Body(...)
 
 
 @router.post("/news/analyse")
@@ -264,6 +265,32 @@ async def intelligence_refresh(
         export_delta=export_delta,
         limit=limit,
     )
+
+
+@router.post("/intelligence/backfill")
+async def intelligence_backfill(payload: dict[str, Any] = BACKFILL_PAYLOAD) -> dict[str, Any]:
+    try:
+        start = _parse_date(str(payload["from"]))
+        end = _parse_date(str(payload["to"]))
+        source = str(payload.get("source", "eodhd_news"))
+        limit = max(1, min(int(payload.get("limit", 5_000)), 50_000))
+        page_limit = payload.get("page_limit")
+        max_pages = payload.get("max_pages")
+        return IntelligenceRefreshService(pipeline).backfill(
+            start=start,
+            end=end,
+            source=source,
+            export_delta=bool(payload.get("export_delta", True)),
+            limit=limit,
+            page_limit=int(page_limit) if page_limit is not None else None,
+            max_pages=int(max_pages) if max_pages is not None else None,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=422, detail=f"Missing required field: {exc}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Intelligence backfill failed: {exc}") from exc
 
 
 @router.get("/calibration/report")

@@ -33,5 +33,6 @@ news:
   poll_interval_seconds: 900
   lookback_hours: 48
   limit: 50
+  backfill_max_pages: 100
   max_symbols: 200
   rate_limit_per_minute: 60

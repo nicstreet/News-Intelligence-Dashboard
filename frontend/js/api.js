@@ -6,6 +6,7 @@ const MOCK_MODE = false;
     analyse: "/news/analyse",
     intelligenceOutput: "/intelligence/output",
     intelligenceRefresh: "/intelligence/refresh",
+    intelligenceBackfill: "/intelligence/backfill",
     events: "/news/events",
     eventDetail: (eventId) => `/news/events/${encodeURIComponent(eventId)}/detail`,
     clusters: (clusterId) => `/news/clusters/${encodeURIComponent(clusterId)}`,
@@ -97,6 +98,22 @@ const MOCK_MODE = false;
     }
     const suffix = force ? "?force=true" : "";
     return request(`${ENDPOINTS.intelligenceRefresh}${suffix}`, {method: "POST"});
+  }
+
+  async function intelligenceBackfill(payload) {
+    if (useMockMode()) {
+      return {
+        automation_run_id: `mock_backfill_${Date.now()}`,
+        final_record_count: 0,
+        exported_count: 0,
+        output: {records: []}
+      };
+    }
+    return request(ENDPOINTS.intelligenceBackfill, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
   }
 
   async function recentEvents() {
@@ -321,6 +338,7 @@ const MOCK_MODE = false;
     analyse,
     intelligenceOutput,
     intelligenceRefresh,
+    intelligenceBackfill,
     recentEvents,
     eventDetail,
     sourceStatus,

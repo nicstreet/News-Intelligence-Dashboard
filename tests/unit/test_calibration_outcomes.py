@@ -114,6 +114,37 @@ def test_joined_outcomes_expose_missing_market_data(
     assert row["confounder_grade"] == "unusable"
 
 
+def test_joined_outcomes_mark_future_market_data_as_pending(
+    isolated_database: Path,
+) -> None:
+    pipeline = _pipeline(isolated_database)
+    pipeline.analyse(
+        coerce_raw_news_items(
+            {
+                "headline": "NVIDIA reports earnings above expectations and raises guidance",
+                "body": (
+                    "Revenue and earnings exceeded expectations and forward guidance was increased."
+                ),
+                "source_name": "Example Newswire",
+                "published_at": "2099-07-10T14:00:00Z",
+                "known_ticker": "NVDA",
+                "source_article_id": "nvda-outcome-future-data",
+            }
+        ),
+        persist=True,
+    )
+
+    report = JoinedOutcomeAnalysisService(
+        pipeline.repositories,
+        FavouritesUniverseService(pipeline.config),
+    ).outcomes()
+    row = next(item for item in report["rows"] if item["symbol"] == "NVDA")
+
+    assert report["outcome_status"] == "pending_market_data_join"
+    assert row["outcome_status"] == "pending_market_open"
+    assert row["confounder_grade"] == "unusable"
+
+
 def _pipeline(database_path: Path) -> NewsIntelligencePipeline:
     return NewsIntelligencePipeline(
         repositories=RepositoryBundle(database_path),

@@ -6,7 +6,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from collections.abc import Callable, Sequence
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 
 from news_intelligence.config import NewsIntelligenceConfig
@@ -66,7 +66,14 @@ class EodhdNewsConnector:
         if not self.enabled or not self._config.eodhd_api_token:
             return []
         known = known_source_record_ids or set()
-        payload = self._get_json(self._parameters())
+        payload = self._get_json(
+            self._parameters(
+                start=(self._clock() - timedelta(hours=self.lookback_hours)).date(),
+                end=self._clock().date(),
+                limit=self.limit,
+                offset=0,
+            )
+        )
         if not isinstance(payload, list):
             return []
         records: list[SourceIngestedItem] = []
@@ -77,6 +84,55 @@ class EodhdNewsConnector:
             if record.source_record_id not in known:
                 records.append(record)
         records.sort(key=lambda item: item.published_at, reverse=True)
+        return records
+
+    def fetch_range(
+        self,
+        *,
+        start: date,
+        end: date,
+        known_source_record_ids: set[str] | None = None,
+        limit: int | None = None,
+        max_pages: int | None = None,
+        symbols: list[str] | None = None,
+    ) -> Sequence[SourceIngestedItem]:
+        if not self.enabled or not self._config.eodhd_api_token:
+            return []
+        if end < start:
+            raise ValueError("Backfill end date must be on or after the start date.")
+
+        known = known_source_record_ids or set()
+        page_limit = max(1, int(limit or self.limit))
+        page_count = max(
+            1,
+            int(max_pages or self._settings.get("backfill_max_pages", 100)),
+        )
+        records: list[SourceIngestedItem] = []
+        seen: set[str] = set()
+        for page in range(page_count):
+            offset = page * page_limit
+            payload = self._get_json(
+                self._parameters(
+                    start=start,
+                    end=end,
+                    limit=page_limit,
+                    offset=offset,
+                    symbols=symbols,
+                )
+            )
+            if not isinstance(payload, list) or not payload:
+                break
+            for item in payload:
+                if not isinstance(item, dict):
+                    continue
+                record = self._record_from_payload(item)
+                if record.source_record_id in known or record.source_record_id in seen:
+                    continue
+                records.append(record)
+                seen.add(record.source_record_id)
+            if len(payload) < page_limit:
+                break
+        records.sort(key=lambda item: item.published_at)
         return records
 
     def to_raw_news_item(self, item: SourceIngestedItem) -> RawNewsItem:
@@ -101,18 +157,26 @@ class EodhdNewsConnector:
             metadata={**metadata, "connector_type": self.connector_type},
         )
 
-    def _parameters(self) -> dict[str, str]:
-        symbols = self._symbols()
+    def _parameters(
+        self,
+        *,
+        start: date,
+        end: date,
+        limit: int,
+        offset: int,
+        symbols: list[str] | None = None,
+    ) -> dict[str, str]:
+        selected_symbols = symbols or self._symbols()
         parameters = {
             "api_token": self._config.eodhd_api_token,
             "fmt": "json",
-            "limit": str(self.limit),
-            "offset": "0",
-            "from": (self._clock() - timedelta(hours=self.lookback_hours)).date().isoformat(),
-            "to": self._clock().date().isoformat(),
+            "limit": str(limit),
+            "offset": str(offset),
+            "from": start.isoformat(),
+            "to": end.isoformat(),
         }
-        if symbols:
-            parameters["s"] = ",".join(symbols)
+        if selected_symbols:
+            parameters["s"] = ",".join(selected_symbols)
         return parameters
 
     def _symbols(self) -> list[str]:

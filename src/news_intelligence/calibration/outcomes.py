@@ -81,8 +81,14 @@ class JoinedOutcomeAnalysisService:
             rows.append(self._outcome_row(event=event, signal=signal, event_at=event_at))
 
         profile_summaries = self._profile_summaries(rows)
-        missing_count = sum(1 for row in rows if row["outcome_status"] == "missing_market_data")
-        usable_count = sum(1 for row in rows if row["outcome_status"] != "missing_market_data")
+        missing_statuses = {
+            "missing_market_data",
+            "pending_market_open",
+            "pending_intraday_bars",
+            "pending_daily_close",
+        }
+        missing_count = sum(1 for row in rows if row["outcome_status"] in missing_statuses)
+        usable_count = sum(1 for row in rows if row["outcome_status"] not in missing_statuses)
         return {
             "schema_version": "1.0.0",
             "generated_at": now_utc().isoformat(),
@@ -154,7 +160,15 @@ class JoinedOutcomeAnalysisService:
             "maximum_adverse_excursion_5d": instrument_outcome.maximum_adverse_excursion_5d,
             "outcome_status": outcome_status,
             "confounder_grade": (
-                "unreviewed" if outcome_status != "missing_market_data" else "unusable"
+                "unreviewed"
+                if outcome_status
+                not in {
+                    "missing_market_data",
+                    "pending_market_open",
+                    "pending_intraday_bars",
+                    "pending_daily_close",
+                }
+                else "unusable"
             ),
             "bars_available": instrument_outcome.bars_available,
             "notes": instrument_outcome.notes,
@@ -406,10 +420,29 @@ class JoinedOutcomeAnalysisService:
         return bar.adjusted_close if bar.adjusted_close is not None else bar.close
 
     def _outcome_status(self, outcome: _SymbolOutcome) -> str:
+        now = now_utc()
+        if outcome.market_anchor_at > now:
+            return "pending_market_open"
         if outcome.price_at_event is None:
+            if outcome.bars_available.get("intraday", 0) == 0:
+                if now - outcome.market_anchor_at <= timedelta(hours=8):
+                    return "pending_intraday_bars"
+                if now.date() <= outcome.market_anchor_at.date() + timedelta(days=1):
+                    return "pending_daily_close"
             return "missing_market_data"
         if all(value is None for value in outcome.returns.values()):
             return "price_only"
+        if any(
+            outcome.returns.get(label) is None
+            for label in INTRADAY_WINDOWS
+            if now < outcome.market_anchor_at + INTRADAY_WINDOWS[label]
+        ):
+            return "pending_intraday_bars"
+        if (
+            any(outcome.returns.get(label) is None for label in DAILY_WINDOWS)
+            and now.date() <= outcome.market_anchor_at.date() + timedelta(days=1)
+        ):
+            return "pending_daily_close"
         if any(value is None for value in outcome.returns.values()):
             return "partial"
         return "complete"
