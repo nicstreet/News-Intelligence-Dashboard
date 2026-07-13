@@ -12,6 +12,7 @@ sources:
     url: https://www.federalreserve.gov/feeds/press_all.xml
     poll_interval_seconds: 1800
     limit: 25
+    use_environment_proxy: false
 
   - source_id: ecb_press
     source_name: European Central Bank

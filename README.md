@@ -368,7 +368,7 @@ The favourites universe is configured in `config/favourites.yaml`. It currently 
 
 World-news ingestion is configured in `config/world-news.yaml`. The current adapter is a controlled JSON source for market-relevant geopolitical and macro records covering the US, UK, China, Europe, and global-market risk themes.
 
-EODHD financial-news ingestion is configured under `news` in `config/eodhd.yaml`. It uses the same ignored local token mechanism as market-data access.
+EODHD financial-news ingestion is configured under `news` in `config/eodhd.yaml`. It uses the same ignored local token mechanism as market-data access. The connector uses the global EODHD news feed by default because the EODHD news endpoint rejects comma-separated symbol lists. Per-symbol polling can be enabled deliberately with `per_symbol: true`, but it makes one API call per symbol.
 
 Historical EODHD financial-news backfills use the same connector and output pipeline as the live refresh. A request such as:
 

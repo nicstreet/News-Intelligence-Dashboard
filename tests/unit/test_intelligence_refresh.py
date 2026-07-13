@@ -148,6 +148,7 @@ def test_eodhd_news_connector_fetches_historical_range_pages() -> None:
         offset = int(query["offset"][0])
         assert query["from"][0] == "2021-01-01"
         assert query["to"][0] == "2021-12-31"
+        assert "s" not in query
         if offset == 0:
             return json.dumps(
                 [

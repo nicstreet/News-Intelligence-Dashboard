@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any, cast
 
 from news_intelligence.config import NewsIntelligenceConfig
+from news_intelligence.http_client import redact_url, transport_error_detail, urlopen
 from news_intelligence.models import NewsSource, RawNewsItem, RuntimeEnvironment, SourceIngestedItem
 from news_intelligence.utils import normalise_whitespace, stable_hash, to_utc
 
@@ -44,6 +45,14 @@ class EodhdNewsConnector:
         )
         self.base_url = str(config.eodhd.get("base_url", "https://eodhd.com/api")).rstrip("/")
         self.endpoint = str(self._settings.get("endpoint", "/news"))
+        self.use_environment_proxy = bool(
+            self._settings.get(
+                "use_environment_proxy",
+                config.eodhd.get("use_environment_proxy", False),
+            )
+        )
+        self.use_global_feed = bool(self._settings.get("use_global_feed", True))
+        self.per_symbol = bool(self._settings.get("per_symbol", False))
         self.limit = max(1, int(self._settings.get("limit", 50)))
         self.lookback_hours = max(1, int(self._settings.get("lookback_hours", 48)))
         self.rate_limit_per_minute = max(
@@ -66,23 +75,37 @@ class EodhdNewsConnector:
         if not self.enabled or not self._config.eodhd_api_token:
             return []
         known = known_source_record_ids or set()
-        payload = self._get_json(
-            self._parameters(
-                start=(self._clock() - timedelta(hours=self.lookback_hours)).date(),
-                end=self._clock().date(),
-                limit=self.limit,
-                offset=0,
-            )
-        )
-        if not isinstance(payload, list):
-            return []
         records: list[SourceIngestedItem] = []
-        for item in payload:
-            if not isinstance(item, dict):
+        seen: set[str] = set()
+        errors: list[str] = []
+        successful_requests = 0
+        for symbol in self._symbol_queries():
+            try:
+                payload = self._get_json(
+                    self._parameters(
+                        start=(self._clock() - timedelta(hours=self.lookback_hours)).date(),
+                        end=self._clock().date(),
+                        limit=self.limit,
+                        offset=0,
+                        symbol=symbol,
+                    )
+                )
+                successful_requests += 1
+            except RuntimeError as exc:
+                errors.append(f"{symbol or 'global'}: {exc}")
                 continue
-            record = self._record_from_payload(item)
-            if record.source_record_id not in known:
+            if not isinstance(payload, list):
+                continue
+            for item in payload:
+                if not isinstance(item, dict):
+                    continue
+                record = self._record_from_payload(item)
+                if record.source_record_id in known or record.source_record_id in seen:
+                    continue
                 records.append(record)
+                seen.add(record.source_record_id)
+        if successful_requests == 0 and errors:
+            raise RuntimeError("; ".join(errors[:5]))
         records.sort(key=lambda item: item.published_at, reverse=True)
         return records
 
@@ -109,31 +132,62 @@ class EodhdNewsConnector:
         )
         records: list[SourceIngestedItem] = []
         seen: set[str] = set()
-        for page in range(page_count):
-            offset = page * page_limit
-            payload = self._get_json(
-                self._parameters(
-                    start=start,
-                    end=end,
-                    limit=page_limit,
-                    offset=offset,
-                    symbols=symbols,
-                )
-            )
-            if not isinstance(payload, list) or not payload:
-                break
-            for item in payload:
-                if not isinstance(item, dict):
-                    continue
-                record = self._record_from_payload(item)
-                if record.source_record_id in known or record.source_record_id in seen:
-                    continue
-                records.append(record)
-                seen.add(record.source_record_id)
-            if len(payload) < page_limit:
-                break
+        errors: list[str] = []
+        successful_requests = 0
+        query_symbols = self._symbol_queries(symbols)
+        for symbol in query_symbols:
+            for page in range(page_count):
+                offset = page * page_limit
+                try:
+                    payload = self._get_json(
+                        self._parameters(
+                            start=start,
+                            end=end,
+                            limit=page_limit,
+                            offset=offset,
+                            symbol=symbol,
+                        )
+                    )
+                    successful_requests += 1
+                except RuntimeError as exc:
+                    errors.append(f"{symbol or 'global'}: {exc}")
+                    break
+                if not isinstance(payload, list) or not payload:
+                    break
+                for item in payload:
+                    if not isinstance(item, dict):
+                        continue
+                    record = self._record_from_payload(item)
+                    if record.source_record_id in known or record.source_record_id in seen:
+                        continue
+                    records.append(record)
+                    seen.add(record.source_record_id)
+                if len(payload) < page_limit:
+                    break
+        if successful_requests == 0 and errors:
+            raise RuntimeError("; ".join(errors[:5]))
         records.sort(key=lambda item: item.published_at)
         return records
+
+    def _symbol_queries(self, symbols: list[str] | None = None) -> list[str | None]:
+        if symbols is None and self.use_global_feed and not self.per_symbol:
+            return [None]
+        configured = symbols or self._symbols()
+        if not configured:
+            return [None]
+        return [
+            self._news_symbol(symbol)
+            for symbol in configured
+            if self._news_symbol(symbol)
+        ]
+
+    def _news_symbol(self, symbol: str) -> str:
+        clean = str(symbol).upper().strip()
+        if not clean:
+            return ""
+        if clean.endswith(".L"):
+            return f"{clean[:-2]}.LSE"
+        return clean
 
     def to_raw_news_item(self, item: SourceIngestedItem) -> RawNewsItem:
         metadata = dict(item.metadata)
@@ -164,9 +218,8 @@ class EodhdNewsConnector:
         end: date,
         limit: int,
         offset: int,
-        symbols: list[str] | None = None,
+        symbol: str | None = None,
     ) -> dict[str, str]:
-        selected_symbols = symbols or self._symbols()
         parameters = {
             "api_token": self._config.eodhd_api_token,
             "fmt": "json",
@@ -175,8 +228,8 @@ class EodhdNewsConnector:
             "from": start.isoformat(),
             "to": end.isoformat(),
         }
-        if selected_symbols:
-            parameters["s"] = ",".join(selected_symbols)
+        if symbol:
+            parameters["s"] = symbol
         return parameters
 
     def _symbols(self) -> list[str]:
@@ -271,15 +324,25 @@ class EodhdNewsConnector:
             self._respect_rate_limit()
             request = urllib.request.Request(url, headers=headers)
             try:
-                with urllib.request.urlopen(request, timeout=timeout) as response:
+                with urlopen(
+                    request,
+                    timeout=timeout,
+                    use_environment_proxy=self.use_environment_proxy,
+                ) as response:
                     return cast(bytes, response.read()).decode("utf-8", errors="replace")
             except urllib.error.HTTPError as exc:
                 if exc.code not in {429, 500, 502, 503, 504} or attempt >= self.max_retries:
-                    raise RuntimeError("EODHD news request failed") from exc
+                    raise RuntimeError(
+                        "EODHD news request failed: "
+                        f"{transport_error_detail(exc)} ({redact_url(url)})"
+                    ) from exc
                 time.sleep(2**attempt)
             except urllib.error.URLError as exc:
                 if attempt >= self.max_retries:
-                    raise RuntimeError("EODHD news request failed") from exc
+                    raise RuntimeError(
+                        "EODHD news request failed: "
+                        f"{transport_error_detail(exc)} ({redact_url(url)})"
+                    ) from exc
                 time.sleep(2**attempt)
         raise RuntimeError("EODHD news request failed after retries")
 

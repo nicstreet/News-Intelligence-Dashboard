@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime
 from typing import Any, cast
 
 from news_intelligence.config import NewsIntelligenceConfig
+from news_intelligence.http_client import redact_url, transport_error_detail, urlopen
 from news_intelligence.models import MarketDataBar, MarketDataInterval, RuntimeEnvironment
 from news_intelligence.utils import to_utc
 
@@ -31,6 +32,7 @@ class EodhdMarketDataClient:
         self.base_url = str(self._settings.get("base_url", "https://eodhd.com/api")).rstrip("/")
         self.timeout_seconds = int(self._settings.get("timeout_seconds", 20))
         self.max_retries = int(self._settings.get("max_retries", 3))
+        self.use_environment_proxy = bool(self._settings.get("use_environment_proxy", False))
         self.rate_limit_per_minute = max(
             1,
             int(self._settings.get("rate_limit_per_minute", 60)),
@@ -137,17 +139,27 @@ class EodhdMarketDataClient:
             self._respect_rate_limit()
             request = urllib.request.Request(url, headers=headers)
             try:
-                with urllib.request.urlopen(request, timeout=timeout) as response:
+                with urlopen(
+                    request,
+                    timeout=timeout,
+                    use_environment_proxy=self.use_environment_proxy,
+                ) as response:
                     return cast(bytes, response.read()).decode("utf-8", errors="replace")
             except urllib.error.HTTPError as exc:
                 if exc.code not in {429, 500, 502, 503, 504} or attempt >= self.max_retries:
-                    raise RuntimeError("EODHD request failed") from exc
+                    raise RuntimeError(
+                        "EODHD request failed: "
+                        f"{transport_error_detail(exc)} ({redact_url(url)})"
+                    ) from exc
                 retry_after = exc.headers.get("Retry-After")
                 delay = float(retry_after) if retry_after and retry_after.isdigit() else 2**attempt
                 time.sleep(delay)
             except urllib.error.URLError as exc:
                 if attempt >= self.max_retries:
-                    raise RuntimeError("EODHD request failed") from exc
+                    raise RuntimeError(
+                        "EODHD request failed: "
+                        f"{transport_error_detail(exc)} ({redact_url(url)})"
+                    ) from exc
                 time.sleep(2**attempt)
         raise RuntimeError("EODHD request failed after retries")
 

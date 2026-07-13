@@ -11,6 +11,7 @@ poll_interval_seconds: 300
 max_requests_per_second: 5
 timeout_seconds: 15
 max_retries: 3
+use_environment_proxy: false
 forms: ["8-K"]
 companies:
   - symbol: NVDA

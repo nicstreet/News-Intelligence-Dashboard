@@ -10,6 +10,7 @@ from email.utils import parsedate_to_datetime
 from typing import Any, cast
 
 from news_intelligence.config import NewsIntelligenceConfig
+from news_intelligence.http_client import transport_error_detail, urlopen
 from news_intelligence.models import NewsSource, RawNewsItem, RuntimeEnvironment, SourceIngestedItem
 from news_intelligence.utils import normalise_whitespace, stable_hash, to_utc
 
@@ -42,6 +43,7 @@ class OfficialFeedConnector:
         self.url = str(source_config.get("url", ""))
         self.timeout_seconds = int(source_config.get("timeout_seconds", 20))
         self.max_retries = int(source_config.get("max_retries", 2))
+        self.use_environment_proxy = bool(source_config.get("use_environment_proxy", False))
         self.limit = max(1, int(source_config.get("limit", 25)))
         self._fetcher = fetcher or self._fetch_text
         self._clock = clock or (lambda: datetime.now(UTC))
@@ -170,15 +172,23 @@ class OfficialFeedConnector:
         for attempt in range(self.max_retries + 1):
             request = urllib.request.Request(url, headers=headers)
             try:
-                with urllib.request.urlopen(request, timeout=timeout) as response:
+                with urlopen(
+                    request,
+                    timeout=timeout,
+                    use_environment_proxy=self.use_environment_proxy,
+                ) as response:
                     return cast(bytes, response.read()).decode("utf-8", errors="replace")
             except urllib.error.HTTPError as exc:
                 if exc.code not in {429, 500, 502, 503, 504} or attempt >= self.max_retries:
-                    raise RuntimeError("Official feed request failed") from exc
+                    raise RuntimeError(
+                        f"Official feed request failed: {transport_error_detail(exc)}"
+                    ) from exc
                 time.sleep(2**attempt)
             except urllib.error.URLError as exc:
                 if attempt >= self.max_retries:
-                    raise RuntimeError("Official feed request failed") from exc
+                    raise RuntimeError(
+                        f"Official feed request failed: {transport_error_detail(exc)}"
+                    ) from exc
                 time.sleep(2**attempt)
         raise RuntimeError("Official feed request failed after retries")
 

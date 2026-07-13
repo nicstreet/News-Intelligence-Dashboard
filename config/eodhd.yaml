@@ -8,6 +8,7 @@ api_token_env: EODHD_API_TOKEN
 api_token_file: config/eodhd.local.yaml
 timeout_seconds: 20
 max_retries: 3
+use_environment_proxy: false
 rate_limit_per_minute: 60
 historical_eod:
   endpoint: /eod/{symbol}
@@ -30,9 +31,12 @@ news:
   source_type: newswire
   connector_type: eodhd_news
   endpoint: /news
+  use_global_feed: true
+  per_symbol: false
   poll_interval_seconds: 900
   lookback_hours: 48
   limit: 50
   backfill_max_pages: 100
   max_symbols: 200
   rate_limit_per_minute: 60
+  use_environment_proxy: false
