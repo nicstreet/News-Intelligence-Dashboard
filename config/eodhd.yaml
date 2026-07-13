@@ -24,3 +24,14 @@ exchange_suffixes:
   NASDAQ: US
   NYSE: US
   LSE: LSE
+news:
+  enabled: true
+  source_name: EODHD Financial News
+  source_type: newswire
+  connector_type: eodhd_news
+  endpoint: /news
+  poll_interval_seconds: 900
+  lookback_hours: 48
+  limit: 50
+  max_symbols: 200
+  rate_limit_per_minute: 60

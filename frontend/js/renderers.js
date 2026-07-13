@@ -600,6 +600,41 @@
     }).join("");
   }
 
+  function renderFinalIntelligenceRows(output) {
+    const records = output && output.records ? output.records : [];
+    if (records.length === 0) {
+      return `<tr><td colspan="10">No clean intelligence records available yet. The app will update sources and export deltas automatically.</td></tr>`;
+    }
+    return records.map((record) => {
+      const instrument = record.instrument || {};
+      const signal = record.signal || {};
+      const market = record.market_reaction || {};
+      const returns = market.returns || {};
+      const abnormal = market.abnormal_returns || {};
+      const exportStatus = record.export_status || {};
+      const dateTime = ukDateTime(record.event_time);
+      return `<tr>
+        <td>${escapeHtml(`${dateTime.date} ${dateTime.time}`)}</td>
+        <td>${escapeHtml(instrument.symbol || "n/a")}</td>
+        <td>${escapeHtml(record.headline || "n/a")}</td>
+        <td>${upper(record.event_type)}</td>
+        <td class="${directionClass(signal.direction)}">${upper(signal.direction)} ${number(signal.signal_score, 1)}</td>
+        <td>${number(signal.confidence, 2)}</td>
+        <td class="${returnClass(returns["1d"])}">${percent(returns["1d"])}</td>
+        <td class="${returnClass(abnormal["1d"])}">${percent(abnormal["1d"])}</td>
+        <td>${upper(market.outcome_status || "pending")}</td>
+        <td>${exportStatus.exported ? escapeHtml(exportStatus.path || "exported") : "pending"}</td>
+      </tr>`;
+    }).join("");
+  }
+
+  function directionClass(direction) {
+    const value = upper(direction);
+    if (value === "LONG" || value === "BULLISH") return "direction-BULLISH";
+    if (value === "SHORT" || value === "BEARISH") return "direction-BEARISH";
+    return "direction-NEUTRAL";
+  }
+
   function returnClass(value) {
     if (value === null || value === undefined || Number.isNaN(Number(value))) {
       return "";
@@ -834,6 +869,7 @@
     renderCalibrationReport,
     renderCalibrationOutcomeSummary,
     renderCalibrationOutcomes,
+    renderFinalIntelligenceRows,
     renderFileDropStatus,
     renderMarketBars,
     renderMarketRequests,

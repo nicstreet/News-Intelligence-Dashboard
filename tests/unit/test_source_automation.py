@@ -79,7 +79,16 @@ def _automation_config(
     return replace(
         base,
         sec_edgar={**base.sec_edgar, "enabled": sec_enabled},
+        eodhd={**base.eodhd, "news": {"enabled": False}},
         world_news={**base.world_news, "enabled": world_enabled},
+        official_sources={
+            **base.official_sources,
+            "sources": [
+                {**source, "enabled": False}
+                for source in base.official_sources.get("sources", [])
+                if isinstance(source, dict)
+            ],
+        },
         automation={
             **base.automation,
             "enabled": True,

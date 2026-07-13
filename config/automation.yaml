@@ -11,6 +11,18 @@ sources:
     enabled: true
     stale_after_minutes: 60
     retry_attempts: 2
+  eodhd_news:
+    enabled: true
+    stale_after_minutes: 60
+    retry_attempts: 2
+  official_feed:
+    enabled: true
+    stale_after_minutes: 120
+    retry_attempts: 2
+market_data:
+  enabled: true
+  max_symbols_per_run: 12
+  lookback_days: 120
 retention:
   enabled: false
   apply_on_startup: false

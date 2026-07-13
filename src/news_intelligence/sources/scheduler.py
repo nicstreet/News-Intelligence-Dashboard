@@ -10,6 +10,8 @@ from news_intelligence.models import (
     SourceIngestionRun,
 )
 from news_intelligence.pipeline import NewsIntelligencePipeline
+from news_intelligence.sources.eodhd_news import EodhdNewsConnector
+from news_intelligence.sources.official_feeds import configured_official_feed_connectors
 from news_intelligence.sources.sec_edgar import SecEdgarConnector
 from news_intelligence.sources.service import SourceIngestionService
 from news_intelligence.sources.world_news import WorldNewsConnector
@@ -114,6 +116,11 @@ class SourceScheduler:
         return [
             SecEdgarConnector(self._pipeline.config, clock=self._pipeline.clock),
             WorldNewsConnector(self._pipeline.config),
+            EodhdNewsConnector(self._pipeline.config, clock=self._pipeline.clock),
+            *configured_official_feed_connectors(
+                self._pipeline.config,
+                clock=self._pipeline.clock,
+            ),
         ]
 
     def _statuses(self) -> list[SourceConnectorStatus]:

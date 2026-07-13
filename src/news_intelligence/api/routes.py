@@ -9,12 +9,16 @@ from fastapi import APIRouter, Body, HTTPException
 from news_intelligence.calibration.outcomes import JoinedOutcomeAnalysisService
 from news_intelligence.calibration.service import HistoricalCalibrationService
 from news_intelligence.ingestion.adapters import coerce_raw_news_items
+from news_intelligence.intelligence import IntelligenceRefreshService
 from news_intelligence.market_data.service import MarketDataService
 from news_intelligence.models import MarketDataInterval
 from news_intelligence.outputs.file_drop import FileDropExporter
+from news_intelligence.outputs.final_intelligence import FinalIntelligenceOutputService
 from news_intelligence.pipeline import NewsIntelligencePipeline
 from news_intelligence.schemas.export import public_json_schemas
 from news_intelligence.sources.background import SourceAutomationBackgroundRunner
+from news_intelligence.sources.eodhd_news import EodhdNewsConnector
+from news_intelligence.sources.official_feeds import configured_official_feed_connectors
 from news_intelligence.sources.scheduler import SourceScheduler
 from news_intelligence.sources.sec_edgar import SecEdgarConnector
 from news_intelligence.sources.service import SourceIngestionService
@@ -160,6 +164,28 @@ async def poll_world_news(force: bool = False) -> dict[str, Any]:
     return result.model_dump(mode="json")
 
 
+@router.post("/sources/eodhd-news/poll")
+async def poll_eodhd_news(force: bool = False) -> dict[str, Any]:
+    service = SourceIngestionService(pipeline)
+    connector = EodhdNewsConnector(pipeline.config, clock=pipeline.clock)
+    result = service.ingest(connector, force=force)
+    return result.model_dump(mode="json")
+
+
+@router.post("/sources/official-feeds/poll")
+async def poll_official_feeds(force: bool = False) -> list[dict[str, Any]]:
+    service = SourceIngestionService(pipeline)
+    runs = [
+        service.ingest(connector, force=force)
+        for connector in configured_official_feed_connectors(
+            pipeline.config,
+            clock=pipeline.clock,
+        )
+        if connector.enabled
+    ]
+    return [run.model_dump(mode="json") for run in runs]
+
+
 @router.post("/sources/poll-due")
 async def poll_due_sources(force: bool = False) -> list[dict[str, Any]]:
     runs = SourceScheduler(pipeline).poll_due(force=force)
@@ -179,19 +205,12 @@ async def recent_source_items(limit: int = 50) -> list[dict[str, object]]:
 @router.get("/sources/status")
 async def source_status() -> list[dict[str, Any]]:
     statuses = pipeline.config.source_status()
-    service = SourceIngestionService(pipeline)
-    sec_status = service.status_for(SecEdgarConnector(pipeline.config, clock=pipeline.clock))
     merged: dict[str, dict[str, Any]] = {
         f"{status.get('source_name')}:{status.get('connector_type')}": status
         for status in statuses
     }
-    merged[f"{sec_status.source_name}:{sec_status.connector_type}"] = sec_status.model_dump(
-        mode="json"
-    )
-    world_status = service.status_for(WorldNewsConnector(pipeline.config))
-    merged[f"{world_status.source_name}:{world_status.connector_type}"] = (
-        world_status.model_dump(mode="json")
-    )
+    for status in SourceScheduler(pipeline).status()["sources"]:
+        merged[f"{status.get('source_name')}:{status.get('connector_type')}"] = status
     return list(merged.values())
 
 
@@ -223,6 +242,27 @@ async def automation_run_now(force: bool = False) -> dict[str, Any]:
     return SourceScheduler(pipeline).run_once(
         force_sources=force,
         reason="manual_api",
+    )
+
+
+@router.get("/intelligence/output")
+async def intelligence_output(limit: int = 500) -> dict[str, Any]:
+    return FinalIntelligenceOutputService(
+        pipeline.config,
+        pipeline.repositories,
+    ).list_output(limit=limit)
+
+
+@router.post("/intelligence/refresh")
+async def intelligence_refresh(
+    force: bool = False,
+    export_delta: bool = True,
+    limit: int = 500,
+) -> dict[str, Any]:
+    return IntelligenceRefreshService(pipeline).run(
+        force_sources=force,
+        export_delta=export_delta,
+        limit=limit,
     )
 
 

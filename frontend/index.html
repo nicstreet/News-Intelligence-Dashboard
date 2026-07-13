@@ -41,7 +41,14 @@
         <div class="nav-scroll">
           <section class="nav-group" aria-label="Views">
             <div class="nav-label">Views</div>
-            <button class="tool-row side-nav-button active" data-view="events" type="button">
+            <button class="tool-row side-nav-button active" data-view="intelligence" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="IQ"><i class="fa-solid fa-bolt" aria-hidden="true"></i></span>
+                <span class="row-title">Intelligence</span>
+              </span>
+              <span id="sidebar-intelligence-count" class="row-metric">0</span>
+            </button>
+            <button class="tool-row side-nav-button" data-view="events" type="button">
               <span class="row-left">
                 <span class="row-icon" data-fallback="EV"><i class="fa-solid fa-newspaper" aria-hidden="true"></i></span>
                 <span class="row-title">Events</span>
@@ -126,7 +133,7 @@
       </aside>
 
       <main id="content-pane" class="layout">
-        <section class="page-title view-section" data-views="events overview signals sources market-data universe calibration file-drop json developer storage">
+        <section class="page-title view-section" data-views="intelligence events overview signals sources market-data universe calibration file-drop json developer storage">
           <div>
             <h2 id="page-heading">Events</h2>
             <p id="page-subtitle">Live event intelligence, signal state, source evidence and calibration readiness.</p>
@@ -136,6 +143,41 @@
             <button id="run-automation-now" class="btn" type="button">Run Automation</button>
             <span id="automation-run-status" class="status-pill muted">Automation: idle</span>
           </div>
+        </section>
+
+        <section class="card intelligence-output-panel view-section" data-views="intelligence" aria-labelledby="intelligence-output-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="intelligence-output-heading">Clean Intelligence Output</h2>
+              <p>Analysed event records ready for review and file-drop ingestion.</p>
+            </div>
+            <div class="source-actions">
+              <span id="intelligence-run-status" class="status-pill muted">Intelligence: idle</span>
+              <button id="intelligence-toggle-table" class="btn active" type="button">Table</button>
+              <button id="intelligence-toggle-json" class="btn" type="button">JSON</button>
+              <button id="refresh-intelligence" class="btn active" type="button">Update Now</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="screener">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Symbol</th>
+                  <th>Headline</th>
+                  <th>Type</th>
+                  <th>Signal</th>
+                  <th>Confidence</th>
+                  <th>1d</th>
+                  <th>Abn 1d</th>
+                  <th>Status</th>
+                  <th>Export</th>
+                </tr>
+              </thead>
+              <tbody id="intelligence-output-table"></tbody>
+            </table>
+          </div>
+          <pre id="intelligence-output-json" class="hidden"></pre>
         </section>
 
         <section class="summary-cards view-section" data-views="events overview signals sources market-data calibration storage">

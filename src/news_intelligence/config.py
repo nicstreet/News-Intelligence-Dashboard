@@ -56,6 +56,7 @@ class NewsIntelligenceConfig:
     eodhd: dict[str, Any] = field(default_factory=dict)
     favourites: dict[str, Any] = field(default_factory=dict)
     world_news: dict[str, Any] = field(default_factory=dict)
+    official_sources: dict[str, Any] = field(default_factory=dict)
     automation: dict[str, Any] = field(default_factory=dict)
     file_drop: dict[str, Any] = field(default_factory=dict)
     retention: dict[str, Any] = field(default_factory=dict)
@@ -199,6 +200,7 @@ def load_config(config_dir: Path | None = None) -> NewsIntelligenceConfig:
         ),
         favourites=_load_optional_yaml(directory / "favourites.yaml"),
         world_news=_load_optional_yaml(directory / "world-news.yaml"),
+        official_sources=_load_optional_yaml(directory / "official-sources.yaml"),
         automation=_load_optional_yaml(directory / "automation.yaml"),
         file_drop=_load_optional_yaml(directory / "file-drop.yaml"),
         retention=_load_optional_yaml(directory / "retention.yaml"),

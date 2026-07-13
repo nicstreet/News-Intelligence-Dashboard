@@ -4,6 +4,8 @@ const MOCK_MODE = false;
 (function () {
   const ENDPOINTS = {
     analyse: "/news/analyse",
+    intelligenceOutput: "/intelligence/output",
+    intelligenceRefresh: "/intelligence/refresh",
     events: "/news/events",
     eventDetail: (eventId) => `/news/events/${encodeURIComponent(eventId)}/detail`,
     clusters: (clusterId) => `/news/clusters/${encodeURIComponent(clusterId)}`,
@@ -80,6 +82,21 @@ const MOCK_MODE = false;
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(payload)
     });
+  }
+
+  async function intelligenceOutput() {
+    if (useMockMode()) {
+      return {record_count: 0, records: []};
+    }
+    return request(ENDPOINTS.intelligenceOutput);
+  }
+
+  async function intelligenceRefresh(force) {
+    if (useMockMode()) {
+      return {final_record_count: 0, exported_count: 0, output: {records: []}};
+    }
+    const suffix = force ? "?force=true" : "";
+    return request(`${ENDPOINTS.intelligenceRefresh}${suffix}`, {method: "POST"});
   }
 
   async function recentEvents() {
@@ -302,6 +319,8 @@ const MOCK_MODE = false;
 
   window.NewsApi = {
     analyse,
+    intelligenceOutput,
+    intelligenceRefresh,
     recentEvents,
     eventDetail,
     sourceStatus,

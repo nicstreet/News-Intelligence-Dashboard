@@ -372,6 +372,7 @@ class RepositoryBundle:
         self.source_filings = JsonRecordRepository(db_path, "source_filings")
         self.source_status = JsonRecordRepository(db_path, "source_status")
         self.automation_runs = JsonRecordRepository(db_path, "automation_runs")
+        self.final_outputs = JsonRecordRepository(db_path, "final_outputs")
         self.market_bars = MarketBarRepository(db_path)
         self.market_data_requests = JsonRecordRepository(db_path, "market_data_requests")
         self.event_outcomes = JsonRecordRepository(db_path, "event_outcomes")
@@ -402,6 +403,7 @@ class RepositoryBundle:
             "source_filings": self.source_filings,
             "source_status": self.source_status,
             "automation_runs": self.automation_runs,
+            "final_outputs": self.final_outputs,
             "market_data_requests": self.market_data_requests,
             "event_outcomes": self.event_outcomes,
             "calibration_profiles": self.calibration_profiles,

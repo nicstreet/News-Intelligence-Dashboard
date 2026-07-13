@@ -43,6 +43,34 @@ sources:
     connector_type: world_news
     enabled: true
     status: OK
+  EODHD Financial News:
+    source_type: newswire
+    credibility: 0.78
+    country_or_region: global
+    connector_type: eodhd_news
+    enabled: true
+    status: OK
+  Federal Reserve:
+    source_type: central_bank
+    credibility: 0.97
+    country_or_region: US
+    connector_type: official_feed_fed
+    enabled: true
+    status: OK
+  European Central Bank:
+    source_type: central_bank
+    credibility: 0.97
+    country_or_region: Eurozone
+    connector_type: official_feed_ecb
+    enabled: false
+    status: DISABLED
+  Bank of England:
+    source_type: central_bank
+    credibility: 0.97
+    country_or_region: UK
+    connector_type: official_feed_boe
+    enabled: false
+    status: DISABLED
   Market Blog:
     source_type: blog
     credibility: 0.45

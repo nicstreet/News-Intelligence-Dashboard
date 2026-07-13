@@ -1,5 +1,7 @@
 (function () {
   const state = {
+    intelligence: null,
+    intelligenceViewMode: "table",
     result: null,
     recentEvents: [],
     selectedEventId: "",
@@ -15,7 +17,7 @@
     storage: null,
     storageRetention: {},
     retentionPlan: null,
-    currentView: "events",
+    currentView: "intelligence",
     selectedStage: 0,
     selectedPanel: "signal",
     selectedJson: "raw_items",
@@ -38,6 +40,7 @@
     updateModeStatus();
     loadFixture(window.NewsFixtures.list[0].id);
     renderAll();
+    refreshIntelligence(false);
     refreshSources();
     refreshSourceFilings();
     refreshAutomation();
@@ -55,6 +58,8 @@
     [
       "api-status", "mode-status", "options-menu", "options-sources", "options-storage",
       "options-developer", "options-refresh-dashboard", "fixture-selector", "load-fixture", "news-form",
+      "refresh-intelligence", "intelligence-run-status", "intelligence-toggle-table",
+      "intelligence-toggle-json", "intelligence-output-table", "intelligence-output-json",
       "toggle-input-mode", "structured-input", "json-input-wrap", "raw-json", "headline",
       "body", "source-name", "source-type", "source-url", "published-at", "known-ticker",
       "country", "market", "clear-form", "event-summary", "pipeline", "impact-sort",
@@ -77,7 +82,7 @@
       "event-detail-evidence", "event-detail-cluster", "event-detail-json",
       "refresh-storage", "storage-summary", "storage-visualisation", "storage-layers",
       "dry-run-retention", "apply-retention-policy", "retention-preview",
-      "retention-apply-status", "sidebar-events-count", "sidebar-signals-count",
+      "retention-apply-status", "sidebar-intelligence-count", "sidebar-events-count", "sidebar-signals-count",
       "sidebar-sources-status", "sidebar-universe-count", "sidebar-calibration-count",
       "sidebar-file-drop-status", "sidebar-market-data-count", "sidebar-active-watch",
       "page-heading", "page-subtitle", "refresh-market-data", "market-bars", "market-requests"
@@ -88,6 +93,9 @@
 
   function bindEvents() {
     elements["load-fixture"].addEventListener("click", () => loadFixture(elements["fixture-selector"].value));
+    elements["refresh-intelligence"].addEventListener("click", () => refreshIntelligence(true));
+    elements["intelligence-toggle-table"].addEventListener("click", () => setIntelligenceMode("table"));
+    elements["intelligence-toggle-json"].addEventListener("click", () => setIntelligenceMode("json"));
     elements["fixture-selector"].addEventListener("change", () => {
       localStorage.setItem("newsIntelligenceLastFixture", elements["fixture-selector"].value);
     });
@@ -298,6 +306,7 @@
   }
 
   function renderAll() {
+    renderIntelligence();
     renderEventSummary();
     renderPipeline();
     renderImpacts();
@@ -419,6 +428,29 @@
     elements["file-drop-status"].innerHTML = window.NewsRenderers.renderFileDropStatus(state.fileDrop);
   }
 
+  function renderIntelligence() {
+    elements["intelligence-output-table"].innerHTML = window.NewsRenderers.renderFinalIntelligenceRows(
+      state.intelligence
+    );
+    elements["intelligence-output-json"].textContent = JSON.stringify(state.intelligence || null, null, 2);
+    const tableWrap = elements["intelligence-output-table"].closest(".table-wrap");
+    if (tableWrap) {
+      tableWrap.classList.toggle("hidden", state.intelligenceViewMode !== "table");
+    }
+    elements["intelligence-output-json"].classList.toggle(
+      "hidden",
+      state.intelligenceViewMode !== "json"
+    );
+    elements["intelligence-toggle-table"].classList.toggle(
+      "active",
+      state.intelligenceViewMode === "table"
+    );
+    elements["intelligence-toggle-json"].classList.toggle(
+      "active",
+      state.intelligenceViewMode === "json"
+    );
+  }
+
   function renderMarketData() {
     elements["market-bars"].innerHTML = window.NewsRenderers.renderMarketBars(state.marketBars);
     elements["market-requests"].innerHTML = window.NewsRenderers.renderMarketRequests(state.marketRequests);
@@ -528,6 +560,42 @@
         showError(error);
       }
       renderSources();
+    }
+  }
+
+  async function refreshIntelligence(force) {
+    hideError();
+    setIntelligenceStatus("Updating intelligence...", "processing");
+    elements["refresh-intelligence"].disabled = true;
+    try {
+      const result = await window.NewsApi.intelligenceRefresh(Boolean(force));
+      state.lastResponse = result;
+      state.intelligence = result.output || await window.NewsApi.intelligenceOutput();
+      renderIntelligence();
+      await refreshSources();
+      await refreshSourceFilings();
+      await refreshAutomation();
+      await refreshRecent();
+      await refreshCalibration();
+      await refreshFileDrop();
+      await refreshMarketData();
+      await refreshStorage();
+      renderDeveloper();
+      setIntelligenceStatus(
+        `Updated: ${result.final_record_count || 0} records, ${result.exported_count || 0} exported`,
+        ""
+      );
+    } catch (error) {
+      try {
+        state.intelligence = await window.NewsApi.intelligenceOutput();
+      } catch {
+        state.intelligence = null;
+      }
+      renderIntelligence();
+      setIntelligenceStatus("Intelligence refresh failed", "error");
+      showError(error);
+    } finally {
+      elements["refresh-intelligence"].disabled = false;
     }
   }
 
@@ -952,6 +1020,7 @@
 
   function renderPageTitle() {
     const titles = {
+      intelligence: ["Intelligence Output", "Clean, analysed and export-ready news intelligence."],
       events: ["Events", "Live event intelligence, signal state, source evidence and calibration readiness."],
       overview: ["Overview", "Pipeline status, recent events, source automation and fixture controls."],
       signals: ["Signals", "Instrument-level signal snapshots, confidence, quality and impact reasoning."],
@@ -990,6 +1059,7 @@
   }
 
   function renderSidebar() {
+    setText("sidebar-intelligence-count", String(state.intelligence && state.intelligence.record_count ? state.intelligence.record_count : 0));
     setText("sidebar-events-count", String((state.recentEvents || []).length));
     setText("sidebar-signals-count", String(state.result && state.result.signals ? state.result.signals.length : 0));
     setText("sidebar-sources-status", sourceStatusLabel());
@@ -1014,6 +1084,19 @@
 
   function setText(id, value) {
     if (elements[id]) elements[id].textContent = value;
+  }
+
+  function setIntelligenceMode(mode) {
+    state.intelligenceViewMode = mode === "json" ? "json" : "table";
+    renderIntelligence();
+  }
+
+  function setIntelligenceStatus(message, stateClass) {
+    const status = elements["intelligence-run-status"];
+    status.textContent = message;
+    status.classList.toggle("muted", !stateClass);
+    status.classList.toggle("processing", stateClass === "processing");
+    status.classList.toggle("error", stateClass === "error");
   }
 
   function showError(error) {

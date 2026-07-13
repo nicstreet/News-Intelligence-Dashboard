@@ -18,6 +18,7 @@ TIMESTAMP_KEYS = {
     "processed_at",
     "event_effective_at",
     "generated_at",
+    "exported_at",
     "expires_at",
     "expiry_time",
     "filing_time",
@@ -52,6 +53,7 @@ REPOSITORY_LAYER_KEYS = {
     "event_clusters",
     "instrument_impacts",
     "signal_snapshots",
+    "final_outputs",
     "source_filings",
     "market_data_requests",
     "event_outcomes",
@@ -69,6 +71,7 @@ MARKET_BAR_LAYER_INTERVALS = {
 
 RETENTION_TIMESTAMP_PRIORITY = (
     "generated_at",
+    "exported_at",
     "processed_at",
     "published_at",
     "first_seen_at",
@@ -105,6 +108,7 @@ class StorageLayerSummaryService:
             self._repository_layer("event_clusters", self._repositories.clusters),
             self._repository_layer("instrument_impacts", self._repositories.impacts),
             self._repository_layer("signal_snapshots", self._repositories.signals),
+            self._repository_layer("final_outputs", self._repositories.final_outputs),
             self._repository_layer("source_filings", self._repositories.source_filings),
             self._market_bar_layer("market_daily_bars"),
             self._market_bar_layer("market_intraday_bars"),

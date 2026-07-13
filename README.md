@@ -73,12 +73,13 @@ The dashboard is served by FastAPI at `/` and uses vanilla HTML, CSS, and JavaSc
 
 It is organised as a left-navigation operational console:
 
+- `Intelligence`: default clean output view; on load the app checks sources, processes deltas, refreshes market-data joins, exports changed JSON, and displays table/JSON output.
 - `Overview`: current analysis, pipeline status, recent events, and automation health.
 - `Sources`: connector status, due/stale checks, SEC polling, world-news polling, and ingested source records.
 - `Events`: recent events, clusters, update/duplicate counts, and event audit trail.
 - `Signals`: signal score, confidence, quality, freshness, composition, risk, evidence, and impacts.
 - `Favourites`: configured trading/research universe.
-- `Calibration`: current historical-calibration report scaffold.
+- `Calibration`: joined news-vs-market outcome analysis and profile summaries.
 - `File Drop`: configured output directory and latest signal export action.
 - `JSON / Audit`: raw contract inspection.
 - `Developer`: deterministic fixtures, test-run controls, and reset controls.
@@ -96,7 +97,17 @@ For deterministic fixture testing:
 
 The active `test_run_id` is displayed in the Test panel. Previous test runs remain listed until they are explicitly deleted or development data is reset.
 
-For SEC ingestion:
+For the normal user workflow:
+
+1. Open the dashboard.
+2. Wait for the `Intelligence` view to finish its automatic update cycle.
+3. Review the clean output table, or toggle to raw JSON.
+4. Use `Update Now` to run the same delta cycle manually.
+5. Consume exported JSON from the configured file-drop outbox.
+
+Diagnostic views remain available for source, event, market-data, calibration and JSON audit inspection.
+
+For SEC-only manual ingestion:
 
 1. Open the `Sources` view.
 2. Review connector status.
@@ -190,12 +201,16 @@ Implemented endpoints:
 | `DELETE` | `/development-data` | Delete development/test records only |
 | `POST` | `/sources/sec-edgar/poll` | Poll configured SEC EDGAR companies for new 8-K filings |
 | `POST` | `/sources/world-news/poll` | Poll configured world-news JSON records |
+| `POST` | `/sources/eodhd-news/poll` | Poll EODHD financial-news records for the configured universe |
+| `POST` | `/sources/official-feeds/poll` | Poll enabled configured official RSS/Atom feeds |
 | `POST` | `/sources/poll-due` | Poll connectors that are due, or force all connectors |
 | `GET` | `/sources/filings/recent` | List recently ingested source filings |
 | `GET` | `/sources/items/recent` | List recently ingested source records |
 | `GET` | `/sources/status` | Show configured source status |
 | `GET` | `/automation/status` | Show due/stale source state, background runner state, and recent automation runs |
 | `POST` | `/automation/run-now` | Run due-source polling and configured retention housekeeping immediately |
+| `GET` | `/intelligence/output` | List clean user-facing intelligence output records |
+| `POST` | `/intelligence/refresh` | Run source deltas, market-data joins, final output build and delta JSON export |
 | `GET` | `/calibration/report` | Build the current calibration profile report |
 | `GET` | `/calibration/outcomes` | Join persisted news signals to cached market data and calculate forward returns |
 | `POST` | `/market-data/eodhd/fetch` | Fetch and cache bounded EODHD daily or intraday bars |
@@ -350,6 +365,10 @@ The API token is never returned in market-data request records.
 The favourites universe is configured in `config/favourites.yaml`. It currently includes the US shares, ETFs, indices, and UK LSE GBP ETFs listed for the initial calibration scope.
 
 World-news ingestion is configured in `config/world-news.yaml`. The current adapter is a controlled JSON source for market-relevant geopolitical and macro records covering the US, UK, China, Europe, and global-market risk themes.
+
+EODHD financial-news ingestion is configured under `news` in `config/eodhd.yaml`. It uses the same ignored local token mechanism as market-data access.
+
+Official RSS/Atom source expansion is configured in `config/official-sources.yaml`. The registry includes the first wave of core markets and placeholders for further regional disclosure/macro authorities. Enable only feeds with verified URLs and acceptable usage terms.
 
 Automation and file-drop output are configured in:
 

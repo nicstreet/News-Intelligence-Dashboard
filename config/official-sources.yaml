@@ -1,0 +1,146 @@
+version: official-sources-1.0.0
+description: Config-driven official RSS/Atom/HTTP feeds for macro, central-bank and regulated information sources.
+sources:
+  - source_id: federal_reserve_press
+    source_name: Federal Reserve
+    connector_type: official_feed_fed
+    source_type: central_bank
+    source_class: central_bank
+    country_or_region: US
+    authority_level: primary
+    enabled: true
+    url: https://www.federalreserve.gov/feeds/press_all.xml
+    poll_interval_seconds: 1800
+    limit: 25
+
+  - source_id: ecb_press
+    source_name: European Central Bank
+    connector_type: official_feed_ecb
+    source_type: central_bank
+    source_class: central_bank
+    country_or_region: Eurozone
+    authority_level: primary
+    enabled: false
+    url: https://www.ecb.europa.eu/rss/press.html
+    poll_interval_seconds: 1800
+    limit: 25
+
+  - source_id: bank_of_england
+    source_name: Bank of England
+    connector_type: official_feed_boe
+    source_type: central_bank
+    source_class: central_bank
+    country_or_region: UK
+    authority_level: primary
+    enabled: false
+    url: ""
+    poll_interval_seconds: 1800
+    limit: 25
+
+  - source_id: uk_ons
+    source_name: Office for National Statistics
+    connector_type: official_feed_ons
+    source_type: macro_statistics
+    source_class: macro
+    country_or_region: UK
+    authority_level: primary
+    enabled: false
+    url: ""
+    poll_interval_seconds: 3600
+    limit: 25
+
+  - source_id: bls
+    source_name: Bureau of Labor Statistics
+    connector_type: official_feed_bls
+    source_type: macro_statistics
+    source_class: macro
+    country_or_region: US
+    authority_level: primary
+    enabled: false
+    url: ""
+    poll_interval_seconds: 3600
+    limit: 25
+
+  - source_id: bea
+    source_name: Bureau of Economic Analysis
+    connector_type: official_feed_bea
+    source_type: macro_statistics
+    source_class: macro
+    country_or_region: US
+    authority_level: primary
+    enabled: false
+    url: ""
+    poll_interval_seconds: 3600
+    limit: 25
+
+  - source_id: eia
+    source_name: Energy Information Administration
+    connector_type: official_feed_eia
+    source_type: commodity_supply
+    source_class: macro
+    country_or_region: US
+    authority_level: primary
+    enabled: false
+    url: ""
+    poll_interval_seconds: 3600
+    limit: 25
+
+  - source_id: rns
+    source_name: LSEG Regulatory News Service
+    connector_type: official_feed_rns
+    source_type: regulatory
+    source_class: regulated_disclosure
+    country_or_region: UK
+    authority_level: primary
+    enabled: false
+    url: ""
+    poll_interval_seconds: 300
+    limit: 50
+
+  - source_id: jpx_tdnet
+    source_name: JPX TDnet
+    connector_type: official_feed_tdnet
+    source_type: regulatory
+    source_class: regulated_disclosure
+    country_or_region: Japan
+    authority_level: primary
+    enabled: false
+    url: ""
+    poll_interval_seconds: 300
+    limit: 50
+
+  - source_id: hkexnews
+    source_name: HKEXnews
+    connector_type: official_feed_hkex
+    source_type: regulatory
+    source_class: regulated_disclosure
+    country_or_region: Hong Kong
+    authority_level: primary
+    enabled: false
+    url: ""
+    poll_interval_seconds: 300
+    limit: 50
+
+  - source_id: asx_announcements
+    source_name: ASX Announcements
+    connector_type: official_feed_asx
+    source_type: regulatory
+    source_class: regulated_disclosure
+    country_or_region: Australia
+    authority_level: primary
+    enabled: false
+    url: ""
+    poll_interval_seconds: 300
+    limit: 50
+
+  - source_id: sedar_plus
+    source_name: SEDAR+
+    connector_type: official_feed_sedar
+    source_type: regulatory
+    source_class: regulated_disclosure
+    country_or_region: Canada
+    authority_level: primary
+    enabled: false
+    url: ""
+    poll_interval_seconds: 900
+    limit: 50
