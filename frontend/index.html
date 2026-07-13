@@ -458,6 +458,41 @@
           <div id="market-data-progress" class="run-progress"></div>
           <pre id="market-data-backfill-result" class="hidden"></pre>
           <div id="market-data-summary" class="metric-grid"></div>
+          <div id="market-mapping-summary" class="metric-grid"></div>
+          <div class="market-data-grid">
+            <div>
+              <div class="card-title"><span class="dot purple"></span>Provider Overrides</div>
+              <div class="table-wrap">
+                <table class="mini">
+                  <thead>
+                    <tr>
+                      <th>Symbol</th>
+                      <th>EODHD Symbol</th>
+                      <th>Type</th>
+                    </tr>
+                  </thead>
+                  <tbody id="market-overrides"></tbody>
+                </table>
+              </div>
+            </div>
+            <div>
+              <div class="card-title"><span class="dot amber"></span>Recent Mapping Failures</div>
+              <div class="table-wrap">
+                <table class="mini">
+                  <thead>
+                    <tr>
+                      <th>Requested</th>
+                      <th>Symbol</th>
+                      <th>Exchange</th>
+                      <th>Current EODHD Symbol</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody id="market-failed-mappings"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
           <div>
             <div class="card-title"><span class="dot emerald"></span>Coverage By Ticker</div>
             <div class="table-wrap">

@@ -13,6 +13,7 @@
     calibrationOutcomes: null,
     fileDrop: null,
     marketCoverage: null,
+    marketMappings: null,
     marketBars: [],
     marketRequests: [],
     storage: null,
@@ -95,6 +96,7 @@
       "sidebar-sources-status", "sidebar-universe-count", "sidebar-calibration-count",
       "sidebar-file-drop-status", "sidebar-market-data-count", "sidebar-historical-status", "sidebar-active-watch",
       "page-heading", "page-subtitle", "refresh-market-data", "market-data-summary",
+      "market-mapping-summary", "market-overrides", "market-failed-mappings",
       "market-coverage", "market-bars", "market-requests"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
@@ -470,6 +472,15 @@
     elements["market-coverage"].innerHTML = window.NewsRenderers.renderMarketCoverage(
       state.marketCoverage
     );
+    elements["market-mapping-summary"].innerHTML = window.NewsRenderers.renderMarketMappingSummary(
+      state.marketMappings
+    );
+    elements["market-overrides"].innerHTML = window.NewsRenderers.renderMarketOverrides(
+      state.marketMappings
+    );
+    elements["market-failed-mappings"].innerHTML = window.NewsRenderers.renderMarketMappingFailures(
+      state.marketMappings
+    );
     elements["market-bars"].innerHTML = window.NewsRenderers.renderMarketBars(state.marketBars);
     elements["market-requests"].innerHTML = window.NewsRenderers.renderMarketRequests(state.marketRequests);
   }
@@ -831,18 +842,21 @@
 
   async function refreshMarketData() {
     try {
-      const [coverage, bars, requests] = await Promise.all([
+      const [coverage, mappings, bars, requests] = await Promise.all([
         window.NewsApi.marketCoverage(),
+        window.NewsApi.marketMappings(),
         window.NewsApi.marketBars(),
         window.NewsApi.marketRequests()
       ]);
       state.marketCoverage = coverage || null;
+      state.marketMappings = mappings || null;
       state.marketBars = bars || [];
       state.marketRequests = requests || [];
       renderMarketData();
       renderSidebar();
     } catch (error) {
       state.marketCoverage = null;
+      state.marketMappings = null;
       state.marketBars = [];
       state.marketRequests = [];
       if (!window.NewsApi.isMockMode()) {

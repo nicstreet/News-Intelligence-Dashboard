@@ -210,6 +210,32 @@ class MarketDataService:
             "rows": enriched_rows,
         }
 
+    def mapping_summary(self, recent_limit: int = 200) -> dict[str, Any]:
+        exchange_suffixes = self._string_mapping("exchange_suffixes")
+        symbol_overrides = self._string_mapping("symbol_overrides")
+        return {
+            "schema_version": "1.0.0",
+            "provider": "EODHD",
+            "mapping_file": "config/eodhd.yaml",
+            "exchange_suffixes": [
+                {"exchange": exchange, "provider_suffix": suffix}
+                for exchange, suffix in sorted(exchange_suffixes.items())
+            ],
+            "symbol_overrides": [
+                {
+                    "symbol": symbol,
+                    "provider_symbol": provider_symbol,
+                    "mapping_type": "provider_override",
+                }
+                for symbol, provider_symbol in sorted(symbol_overrides.items())
+            ],
+            "recent_failures": self._recent_mapping_failures(
+                recent_limit=recent_limit,
+                symbol_overrides=symbol_overrides,
+                exchange_suffixes=exchange_suffixes,
+            ),
+        }
+
     def _fetch_payload(self, request: MarketDataRequest) -> dict[str, Any]:
         return {
             **request.model_dump(mode="json"),
@@ -263,6 +289,72 @@ class MarketDataService:
             str(exchange or "").upper(),
             interval,
         )
+
+    def _recent_mapping_failures(
+        self,
+        *,
+        recent_limit: int,
+        symbol_overrides: dict[str, str],
+        exchange_suffixes: dict[str, str],
+    ) -> list[dict[str, Any]]:
+        failures: list[dict[str, Any]] = []
+        seen: set[tuple[str, str, str]] = set()
+        for request in self._repositories.market_data_requests.list_recent(recent_limit):
+            if request.get("status") != "failed":
+                continue
+            symbol = str(request.get("symbol", "")).upper()
+            exchange = str(request.get("exchange") or "").upper()
+            interval = str(request.get("interval", ""))
+            if not symbol:
+                continue
+            key = (symbol, exchange, interval)
+            if key in seen:
+                continue
+            seen.add(key)
+            provider_symbol = self._client.eodhd_symbol(symbol, exchange or None)
+            error = str(request.get("error") or "")
+            failures.append(
+                {
+                    "symbol": symbol,
+                    "exchange": exchange or None,
+                    "interval": interval,
+                    "requested_at": request.get("requested_at"),
+                    "current_provider_symbol": provider_symbol,
+                    "failure_kind": "provider_not_found"
+                    if "HTTP 404" in error
+                    else "request_failed",
+                    "mapping_status": self._mapping_status(
+                        symbol=symbol,
+                        exchange=exchange,
+                        symbol_overrides=symbol_overrides,
+                        exchange_suffixes=exchange_suffixes,
+                    ),
+                    "error": error or None,
+                }
+            )
+        return failures
+
+    def _mapping_status(
+        self,
+        *,
+        symbol: str,
+        exchange: str,
+        symbol_overrides: dict[str, str],
+        exchange_suffixes: dict[str, str],
+    ) -> str:
+        if symbol in symbol_overrides:
+            return "provider_override"
+        if "." in symbol:
+            return "embedded_provider_suffix"
+        if exchange and exchange in exchange_suffixes:
+            return "exchange_suffix"
+        return "default_us_suffix"
+
+    def _string_mapping(self, key: str) -> dict[str, str]:
+        value = self._config.eodhd.get(key, {})
+        if not isinstance(value, dict):
+            return {}
+        return {str(name).upper(): str(mapped).upper() for name, mapped in value.items()}
 
     def _request_id(
         self,

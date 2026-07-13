@@ -26,6 +26,7 @@ const MOCK_MODE = false;
     fileDropStatus: "/outputs/file-drop/status",
     fileDropLatest: "/outputs/file-drop/latest",
     marketCoverage: "/market-data/coverage",
+    marketMappings: "/market-data/mappings",
     marketBars: "/market-data/bars/recent",
     marketRequests: "/market-data/requests/recent",
     marketDataBackfill: "/market-data/eodhd/backfill",
@@ -252,6 +253,20 @@ const MOCK_MODE = false;
     return request(ENDPOINTS.marketCoverage);
   }
 
+  async function marketMappings() {
+    if (useMockMode()) {
+      return {
+        schema_version: "mock",
+        provider: "mock",
+        mapping_file: "mock",
+        exchange_suffixes: [],
+        symbol_overrides: [],
+        recent_failures: []
+      };
+    }
+    return request(ENDPOINTS.marketMappings);
+  }
+
   async function marketRequests() {
     if (useMockMode()) {
       return [];
@@ -397,6 +412,7 @@ const MOCK_MODE = false;
     calibrationOutcomes,
     fileDropStatus,
     marketCoverage,
+    marketMappings,
     marketBars,
     marketRequests,
     marketDataBackfill,

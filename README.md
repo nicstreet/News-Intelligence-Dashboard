@@ -221,6 +221,7 @@ Implemented endpoints:
 | `POST` | `/market-data/eodhd/fetch` | Fetch and cache bounded EODHD daily or intraday bars |
 | `POST` | `/market-data/eodhd/backfill` | Populate EODHD daily market-data history for the configured universe and benchmarks |
 | `GET` | `/market-data/coverage` | Summarise cached market-data coverage by ticker, exchange and interval |
+| `GET` | `/market-data/mappings` | Show EODHD exchange suffixes, provider symbol overrides and recent mapping failures |
 | `GET` | `/market-data/bars/recent` | List recently cached market-data bars |
 | `GET` | `/market-data/requests/recent` | List recent market-data request audit records |
 | `GET` | `/outputs/file-drop/status` | Show file-drop output configuration |

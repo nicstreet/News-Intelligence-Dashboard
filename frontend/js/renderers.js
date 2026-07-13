@@ -751,6 +751,51 @@
       </tr>`).join("");
   }
 
+  function renderMarketMappingSummary(mappings) {
+    if (!mappings) {
+      return metric("Mappings", "No market-data mappings loaded");
+    }
+    const failures = mappings.recent_failures || [];
+    const unresolved = failures.filter(
+      (item) => item.mapping_status === "default_us_suffix"
+        && item.failure_kind === "provider_not_found"
+    );
+    return [
+      metric("Mapping file", mappings.mapping_file || "n/a"),
+      metric("Provider overrides", (mappings.symbol_overrides || []).length),
+      metric("Exchange suffixes", (mappings.exchange_suffixes || []).length),
+      metric("Recent failed symbols", failures.length),
+      metric("Likely unmapped", unresolved.length),
+      metric("Provider", mappings.provider || "n/a")
+    ].join("");
+  }
+
+  function renderMarketOverrides(mappings) {
+    const rows = mappings && mappings.symbol_overrides ? mappings.symbol_overrides : [];
+    if (rows.length === 0) {
+      return `<tr><td colspan="3">No provider overrides configured.</td></tr>`;
+    }
+    return rows.map((row) => `<tr>
+      <td>${escapeHtml(row.symbol || "n/a")}</td>
+      <td>${escapeHtml(row.provider_symbol || "n/a")}</td>
+      <td>${escapeHtml(upper(row.mapping_type || "n/a"))}</td>
+    </tr>`).join("");
+  }
+
+  function renderMarketMappingFailures(mappings) {
+    const rows = mappings && mappings.recent_failures ? mappings.recent_failures : [];
+    if (rows.length === 0) {
+      return `<tr><td colspan="5">No recent market-data mapping failures.</td></tr>`;
+    }
+    return rows.map((row) => `<tr>
+      <td>${escapeHtml(dateOnly(row.requested_at))}</td>
+      <td>${escapeHtml(row.symbol || "n/a")}</td>
+      <td>${escapeHtml(row.exchange || "n/a")}</td>
+      <td>${escapeHtml(row.current_provider_symbol || "n/a")}</td>
+      <td>${escapeHtml(upper(row.mapping_status || row.failure_kind || "n/a"))}</td>
+    </tr>`).join("");
+  }
+
   function renderMarketBars(bars) {
     if (!bars || bars.length === 0) {
       return `<tr><td colspan="9">No cached market bars available.</td></tr>`;
@@ -976,6 +1021,9 @@
     renderFileDropStatus,
     renderMarketDataSummary,
     renderMarketCoverage,
+    renderMarketMappingSummary,
+    renderMarketOverrides,
+    renderMarketMappingFailures,
     renderMarketBars,
     renderMarketRequests,
     renderStorageSummary,

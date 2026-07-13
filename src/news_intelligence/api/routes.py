@@ -381,6 +381,13 @@ async def market_data_coverage() -> dict[str, Any]:
     return MarketDataService(pipeline.config, pipeline.repositories).coverage_summary()
 
 
+@router.get("/market-data/mappings")
+async def market_data_mappings(limit: int = 200) -> dict[str, Any]:
+    return MarketDataService(pipeline.config, pipeline.repositories).mapping_summary(
+        recent_limit=limit
+    )
+
+
 @router.post("/market-data/eodhd/backfill")
 def populate_eodhd_market_data_history(
     payload: dict[str, Any] = MARKET_DATA_HISTORY_PAYLOAD,

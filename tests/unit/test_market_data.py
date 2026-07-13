@@ -42,6 +42,8 @@ def test_eodhd_client_converts_daily_bars_and_symbols() -> None:
     assert client.eodhd_symbol("AAPL", "NASDAQ") == "AAPL.US"
     assert client.eodhd_symbol("SEMG.L", "LSE") == "SEMG.LSE"
     assert client.eodhd_symbol("000660") == "000660.KO"
+    assert client.eodhd_symbol("005490") == "005490.KO"
+    assert client.eodhd_symbol("SANN") == "SANN.SW"
     assert client.eodhd_symbol("VIX", "CBOE") == "VIX.INDX"
     assert len(bars) == 2
     assert bars[0].symbol == "AAPL"
@@ -102,6 +104,37 @@ def test_market_data_service_stores_bars_once_and_audits_request(
     assert coverage_row["first_timestamp_utc"] == "2026-07-01T00:00:00+00:00"
     assert coverage_row["last_timestamp_utc"] == "2026-07-02T00:00:00+00:00"
     assert coverage_row["last_request_status"] == "success"
+
+
+def test_market_data_mapping_summary_exposes_overrides_and_failures(
+    isolated_database: Path,
+) -> None:
+    repositories = RepositoryBundle(isolated_database)
+    service = MarketDataService(_eodhd_config(), repositories, clock=lambda: FIXED_NOW)
+    repositories.market_data_requests.save(
+        "failed-005490",
+        {
+            "request_id": "failed-005490",
+            "symbol": "005490",
+            "exchange": None,
+            "interval": "1d",
+            "requested_at": FIXED_NOW.isoformat(),
+            "status": "failed",
+            "error": "EODHD request failed: HTTP 404",
+        },
+    )
+
+    summary = service.mapping_summary()
+    overrides = {
+        row["symbol"]: row["provider_symbol"] for row in summary["symbol_overrides"]
+    }
+    failure = summary["recent_failures"][0]
+
+    assert overrides["005490"] == "005490.KO"
+    assert failure["symbol"] == "005490"
+    assert failure["current_provider_symbol"] == "005490.KO"
+    assert failure["failure_kind"] == "provider_not_found"
+    assert failure["mapping_status"] == "provider_override"
 
 
 def test_market_data_history_backfill_populates_universe_symbols(
