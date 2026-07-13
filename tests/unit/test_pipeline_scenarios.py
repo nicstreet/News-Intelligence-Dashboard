@@ -285,6 +285,9 @@ def test_dashboard_exposes_update_counts_and_versions() -> None:
     assert "backfill-symbols" in index
     assert "selectedBackfillSymbols" in app
     assert "renderBackfillSymbols" in app
+    summary_views = re.search(r'class="summary-cards[^"]*" data-views="([^"]+)"', index)
+    assert summary_views is not None
+    assert "market-data" not in summary_views.group(1).split()
 
 
 def test_takeover_fixture_isolated_across_test_runs(isolated_database: Path) -> None:
