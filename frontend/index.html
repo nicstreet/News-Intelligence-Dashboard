@@ -48,6 +48,13 @@
               </span>
               <span id="sidebar-intelligence-count" class="row-metric">0</span>
             </button>
+            <button class="tool-row side-nav-button" data-view="historical" type="button">
+              <span class="row-left">
+                <span class="row-icon" data-fallback="HI"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></span>
+                <span class="row-title">Historical</span>
+              </span>
+              <span id="sidebar-historical-status" class="row-metric">Idle</span>
+            </button>
             <button class="tool-row side-nav-button" data-view="events" type="button">
               <span class="row-left">
                 <span class="row-icon" data-fallback="EV"><i class="fa-solid fa-newspaper" aria-hidden="true"></i></span>
@@ -133,7 +140,7 @@
       </aside>
 
       <main id="content-pane" class="layout">
-        <section class="page-title view-section" data-views="intelligence events overview signals sources market-data universe calibration file-drop json developer storage">
+        <section class="page-title view-section" data-views="intelligence historical events overview signals sources market-data universe calibration file-drop json developer storage">
           <div>
             <h2 id="page-heading">Events</h2>
             <p id="page-subtitle">Live event intelligence, signal state, source evidence and calibration readiness.</p>
@@ -158,14 +165,7 @@
               <button id="refresh-intelligence" class="btn active" type="button">Update Now</button>
             </div>
           </div>
-          <div class="fixture-row">
-            <label for="backfill-from">From</label>
-            <input id="backfill-from" type="date">
-            <label for="backfill-to">To</label>
-            <input id="backfill-to" type="date">
-            <button id="run-intelligence-backfill" class="btn" type="button">Run Backfill</button>
-            <span id="intelligence-backfill-status" class="status-pill muted">Backfill: idle</span>
-          </div>
+          <div id="intelligence-progress" class="run-progress"></div>
           <div class="table-wrap">
             <table class="screener">
               <thead>
@@ -186,6 +186,43 @@
             </table>
           </div>
           <pre id="intelligence-output-json" class="hidden"></pre>
+        </section>
+
+        <section class="card historical-panel view-section view-hidden" data-views="historical" aria-labelledby="historical-heading">
+          <div class="section-heading">
+            <div>
+              <h2 id="historical-heading">Historical Backfill</h2>
+              <p>Fetch dated EODHD news, run the normal pipeline, store market bars and export date-scoped JSON.</p>
+            </div>
+            <span id="intelligence-backfill-status" class="status-pill muted">Backfill: idle</span>
+          </div>
+          <div class="fixture-row">
+            <label for="backfill-from">From</label>
+            <input id="backfill-from" type="date">
+            <label for="backfill-to">To</label>
+            <input id="backfill-to" type="date">
+            <button id="run-intelligence-backfill" class="btn active" type="button">Run Backfill</button>
+          </div>
+          <div id="historical-progress" class="run-progress"></div>
+          <div class="metric-grid">
+            <div class="metric">
+              <span>Market data storage</span>
+              <strong>SQLite market_bars</strong>
+            </div>
+            <div class="metric">
+              <span>Request audit</span>
+              <strong>market_data_requests</strong>
+            </div>
+            <div class="metric">
+              <span>Export shape</span>
+              <strong>Records + manifest</strong>
+            </div>
+            <div class="metric">
+              <span>Backfill source</span>
+              <strong>EODHD news</strong>
+            </div>
+          </div>
+          <pre id="historical-result-json"></pre>
         </section>
 
         <section class="summary-cards view-section" data-views="events overview signals sources market-data calibration storage">
@@ -519,6 +556,20 @@
             </div>
           </div>
           <div id="file-drop-status" class="metric-grid"></div>
+          <div class="export-help-grid">
+            <div class="metric">
+              <span>Final intelligence record</span>
+              <strong>One changed event/signal/instrument JSON file.</strong>
+            </div>
+            <div class="metric">
+              <span>Run manifest</span>
+              <strong>One summary file listing exported and skipped records.</strong>
+            </div>
+            <div class="metric">
+              <span>Manual signal export</span>
+              <strong>Legacy single-signal JSON from the File Drop button.</strong>
+            </div>
+          </div>
           <pre id="file-drop-result"></pre>
         </section>
 

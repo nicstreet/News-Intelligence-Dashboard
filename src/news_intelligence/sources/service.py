@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime
+from typing import Any
 
 from news_intelligence.models import (
     RuntimeEnvironment,
@@ -13,13 +14,23 @@ from news_intelligence.models import (
 from news_intelligence.pipeline import NewsIntelligencePipeline
 from news_intelligence.sources.base import SourceAdapter, SourceRecord
 
+ProgressCallback = Callable[[dict[str, Any]], None]
+
 
 class SourceIngestionService:
     def __init__(self, pipeline: NewsIntelligencePipeline) -> None:
         self._pipeline = pipeline
         self._repositories = pipeline.repositories
 
-    def ingest(self, adapter: SourceAdapter, *, force: bool = False) -> SourceIngestionRun:
+    def ingest(
+        self,
+        adapter: SourceAdapter,
+        *,
+        force: bool = False,
+        progress: ProgressCallback | None = None,
+        connector_index: int = 1,
+        connector_total: int = 1,
+    ) -> SourceIngestionRun:
         started_at = self._pipeline.clock()
         previous_status = self._stored_status(adapter.adapter_id)
         if not force and previous_status is not None and previous_status.last_polled_at is not None:
@@ -43,6 +54,14 @@ class SourceIngestionService:
         known_ids = self._known_source_record_ids(adapter.connector_type)
         errors: list[str] = []
         fetched_items: list[SourceRecord] = []
+        self._progress(
+            progress,
+            adapter=adapter,
+            connector_index=connector_index,
+            connector_total=connector_total,
+            phase="fetching_source",
+            message=f"Fetching {adapter.source_name}",
+        )
         try:
             fetched_items = list(adapter.fetch(known_ids))
         except Exception as exc:
@@ -53,12 +72,19 @@ class SourceIngestionService:
             started_at=started_at,
             fetched_items=fetched_items,
             fetch_errors=errors,
+            progress=progress,
+            connector_index=connector_index,
+            connector_total=connector_total,
         )
 
     def ingest_fetched(
         self,
         adapter: SourceAdapter,
         fetched_items: Sequence[SourceRecord],
+        *,
+        progress: ProgressCallback | None = None,
+        connector_index: int = 1,
+        connector_total: int = 1,
     ) -> SourceIngestionRun:
         return self._ingest_fetched(
             adapter=adapter,
@@ -66,6 +92,9 @@ class SourceIngestionService:
             started_at=self._pipeline.clock(),
             fetched_items=list(fetched_items),
             fetch_errors=[],
+            progress=progress,
+            connector_index=connector_index,
+            connector_total=connector_total,
         )
 
     def known_source_record_ids(self, connector_type: str) -> set[str]:
@@ -79,13 +108,39 @@ class SourceIngestionService:
         started_at: datetime,
         fetched_items: list[SourceRecord],
         fetch_errors: list[str],
+        progress: ProgressCallback | None,
+        connector_index: int,
+        connector_total: int,
     ) -> SourceIngestionRun:
         errors: list[str] = []
         ingested_items: list[SourceRecord] = []
         skipped_count = 0
         errors.extend(fetch_errors)
+        record_total = len(fetched_items)
+        self._progress(
+            progress,
+            adapter=adapter,
+            connector_index=connector_index,
+            connector_total=connector_total,
+            record_total=record_total,
+            phase="processing_records",
+            message=f"Processing {adapter.source_name}",
+        )
         try:
-            for source_item in fetched_items:
+            for record_index, source_item in enumerate(fetched_items, start=1):
+                self._progress(
+                    progress,
+                    adapter=adapter,
+                    connector_index=connector_index,
+                    connector_total=connector_total,
+                    record_index=record_index,
+                    record_total=record_total,
+                    fetched_count=record_total,
+                    ingested_count=len(ingested_items),
+                    skipped_count=skipped_count,
+                    phase="processing_records",
+                    message=source_item.headline,
+                )
                 if self._repositories.source_filings.get(source_item.source_record_id) is not None:
                     skipped_count += 1
                     continue
@@ -116,6 +171,20 @@ class SourceIngestionService:
                 ingested_items.append(stored_item)
         except Exception as exc:
             errors.append(str(exc))
+        self._progress(
+            progress,
+            adapter=adapter,
+            connector_index=connector_index,
+            connector_total=connector_total,
+            record_index=record_total,
+            record_total=record_total,
+            fetched_count=record_total,
+            ingested_count=len(ingested_items),
+            skipped_count=skipped_count,
+            error_count=len(errors),
+            phase="source_complete",
+            message=f"Completed {adapter.source_name}",
+        )
 
         completed_at = self._pipeline.clock()
         status = self._status(
@@ -215,3 +284,24 @@ class SourceIngestionService:
             return RuntimeEnvironment(self._pipeline.config.environment)
         except ValueError:
             return RuntimeEnvironment.DEVELOPMENT
+
+    def _progress(
+        self,
+        progress: ProgressCallback | None,
+        *,
+        adapter: SourceAdapter,
+        connector_index: int,
+        connector_total: int,
+        **updates: Any,
+    ) -> None:
+        if progress is None:
+            return
+        progress(
+            {
+                "connector_name": adapter.source_name,
+                "connector_type": adapter.connector_type,
+                "connector_index": connector_index,
+                "connector_total": connector_total,
+                **updates,
+            }
+        )

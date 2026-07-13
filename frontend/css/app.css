@@ -746,6 +746,62 @@ label {
   margin-bottom: 10px;
 }
 
+.run-progress {
+  min-height: 38px;
+}
+
+.progress-shell {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: rgba(8, 12, 20, 0.36);
+}
+
+.progress-topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.progress-topline strong {
+  color: var(--cyan);
+}
+
+.progress-track {
+  height: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+  border-radius: 999px;
+  background: var(--deep);
+}
+
+.progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cyan), var(--emerald));
+}
+
+.progress-grid,
+.export-help-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.export-help-grid {
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+}
+
+.export-help-grid .metric strong {
+  font: 700 12px/1.35 var(--sans);
+  white-space: normal;
+}
+
 .table-wrap {
   width: 100%;
   overflow: auto;
@@ -1065,7 +1121,9 @@ details summary {
 
   .summary-cards,
   .events-workspace,
-  .market-data-grid {
+  .market-data-grid,
+  .progress-grid,
+  .export-help-grid {
     grid-template-columns: 1fr;
   }
 

@@ -26,6 +26,7 @@
     backfillResult: null,
     activeTestRunId: localStorage.getItem("newsIntelligenceActiveTestRunId") || "",
     testRuns: [],
+    latestProgress: null,
     lastRequest: null,
     lastResponse: null
   };
@@ -63,6 +64,7 @@
       "refresh-intelligence", "intelligence-run-status", "intelligence-toggle-table",
       "intelligence-toggle-json", "intelligence-output-table", "intelligence-output-json",
       "backfill-from", "backfill-to", "run-intelligence-backfill", "intelligence-backfill-status",
+      "intelligence-progress", "historical-progress", "historical-result-json",
       "toggle-input-mode", "structured-input", "json-input-wrap", "raw-json", "headline",
       "body", "source-name", "source-type", "source-url", "published-at", "known-ticker",
       "country", "market", "clear-form", "event-summary", "pipeline", "impact-sort",
@@ -87,7 +89,7 @@
       "dry-run-retention", "apply-retention-policy", "retention-preview",
       "retention-apply-status", "sidebar-intelligence-count", "sidebar-events-count", "sidebar-signals-count",
       "sidebar-sources-status", "sidebar-universe-count", "sidebar-calibration-count",
-      "sidebar-file-drop-status", "sidebar-market-data-count", "sidebar-active-watch",
+      "sidebar-file-drop-status", "sidebar-market-data-count", "sidebar-historical-status", "sidebar-active-watch",
       "page-heading", "page-subtitle", "refresh-market-data", "market-bars", "market-requests"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
@@ -571,6 +573,7 @@
     hideError();
     setIntelligenceStatus("Updating intelligence...", "processing");
     elements["refresh-intelligence"].disabled = true;
+    const stopProgress = startProgressPolling("intelligence");
     try {
       const result = await window.NewsApi.intelligenceRefresh(Boolean(force));
       state.lastResponse = result;
@@ -599,6 +602,8 @@
       setIntelligenceStatus("Intelligence refresh failed", "error");
       showError(error);
     } finally {
+      stopProgress();
+      await refreshProgress("intelligence");
       elements["refresh-intelligence"].disabled = false;
     }
   }
@@ -617,6 +622,7 @@
     }
     setBackfillStatus("Backfill: running...", "processing");
     elements["run-intelligence-backfill"].disabled = true;
+    const stopProgress = startProgressPolling("historical");
     try {
       const result = await window.NewsApi.intelligenceBackfill({
         from,
@@ -627,6 +633,7 @@
       });
       state.backfillResult = result;
       state.lastResponse = result;
+      elements["historical-result-json"].textContent = JSON.stringify(result, null, 2);
       state.intelligence = result.output || await window.NewsApi.intelligenceOutput();
       renderIntelligence();
       await refreshSources();
@@ -646,7 +653,36 @@
       setBackfillStatus("Backfill: failed", "error");
       showError(error);
     } finally {
+      stopProgress();
+      await refreshProgress("historical");
       elements["run-intelligence-backfill"].disabled = false;
+    }
+  }
+
+  function startProgressPolling(scope) {
+    refreshProgress(scope);
+    const timer = window.setInterval(() => refreshProgress(scope), 700);
+    return () => window.clearInterval(timer);
+  }
+
+  async function refreshProgress(scope) {
+    try {
+      const progress = await window.NewsApi.intelligenceProgress();
+      state.latestProgress = progress;
+      renderProgress(scope);
+      renderSidebar();
+    } catch {
+      state.latestProgress = null;
+      renderProgress(scope);
+    }
+  }
+
+  function renderProgress(scope) {
+    const html = window.NewsRenderers.renderRunProgress(state.latestProgress);
+    if (scope === "historical") {
+      elements["historical-progress"].innerHTML = html;
+    } else {
+      elements["intelligence-progress"].innerHTML = html;
     }
   }
 
@@ -1072,6 +1108,7 @@
   function renderPageTitle() {
     const titles = {
       intelligence: ["Intelligence Output", "Clean, analysed and export-ready news intelligence."],
+      historical: ["Historical Backfill", "Date-range ingestion, market-data joins and export audit."],
       events: ["Events", "Live event intelligence, signal state, source evidence and calibration readiness."],
       overview: ["Overview", "Pipeline status, recent events, source automation and fixture controls."],
       signals: ["Signals", "Instrument-level signal snapshots, confidence, quality and impact reasoning."],
@@ -1118,6 +1155,7 @@
     setText("sidebar-calibration-count", String(state.calibration && state.calibration.signal_count ? state.calibration.signal_count : 0));
     setText("sidebar-file-drop-status", state.fileDrop && state.fileDrop.enabled ? "On" : "Idle");
     setText("sidebar-market-data-count", String((state.marketBars || []).length));
+    setText("sidebar-historical-status", progressSidebarLabel());
     if (elements["sidebar-active-watch"]) {
       elements["sidebar-active-watch"].innerHTML = window.NewsRenderers.renderSidebarWatch(
         state.recentEvents || []
@@ -1131,6 +1169,14 @@
     if (sources.some((source) => String(source.current_status || "").toUpperCase() === "ERROR")) return "ERR";
     if (sources.some((source) => source.stale)) return "STALE";
     return "OK";
+  }
+
+  function progressSidebarLabel() {
+    const progress = state.latestProgress;
+    if (!progress || progress.status === "idle") return "Idle";
+    if (progress.status === "running") return "Run";
+    if (progress.status === "error") return "ERR";
+    return "Done";
   }
 
   function setText(id, value) {

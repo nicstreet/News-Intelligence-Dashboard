@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from typing import Any
 from uuid import uuid4
@@ -16,6 +17,8 @@ from news_intelligence.sources.sec_edgar import SecEdgarConnector
 from news_intelligence.sources.service import SourceIngestionService
 from news_intelligence.sources.world_news import WorldNewsConnector
 from news_intelligence.storage.retention import StorageLayerSummaryService
+
+ProgressCallback = Callable[[dict[str, Any]], None]
 
 
 class SourceScheduler:
@@ -44,14 +47,31 @@ class SourceScheduler:
     def interval_seconds(self) -> int:
         return max(10, int(self._pipeline.config.automation.get("scheduler_interval_seconds", 60)))
 
-    def poll_due(self, *, force: bool = False) -> list[SourceIngestionRun]:
+    def poll_due(
+        self,
+        *,
+        force: bool = False,
+        progress: ProgressCallback | None = None,
+    ) -> list[SourceIngestionRun]:
         runs: list[SourceIngestionRun] = []
+        adapters: list[Any] = []
         for adapter in self._adapters():
             status = self._service.status_for(adapter)
             if not status.enabled:
                 continue
             if force or self._is_due(status, self._pipeline.clock()):
-                runs.append(self._ingest_with_retries(adapter, force=force))
+                adapters.append(adapter)
+        total = len(adapters)
+        for index, adapter in enumerate(adapters, start=1):
+            runs.append(
+                self._ingest_with_retries(
+                    adapter,
+                    force=force,
+                    progress=progress,
+                    connector_index=index,
+                    connector_total=total,
+                )
+            )
         return runs
 
     def run_once(
@@ -163,11 +183,25 @@ class SourceScheduler:
             "status": run.status.model_dump(mode="json"),
         }
 
-    def _ingest_with_retries(self, adapter: Any, *, force: bool) -> SourceIngestionRun:
+    def _ingest_with_retries(
+        self,
+        adapter: Any,
+        *,
+        force: bool,
+        progress: ProgressCallback | None,
+        connector_index: int,
+        connector_total: int,
+    ) -> SourceIngestionRun:
         max_attempts = self._retry_attempts(str(adapter.connector_type)) + 1
         last_run: SourceIngestionRun | None = None
         for _attempt in range(max_attempts):
-            last_run = self._service.ingest(adapter, force=force)
+            last_run = self._service.ingest(
+                adapter,
+                force=force,
+                progress=progress,
+                connector_index=connector_index,
+                connector_total=connector_total,
+            )
             if last_run.error_count == 0:
                 return last_run
         if last_run is None:

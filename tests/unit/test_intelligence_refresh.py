@@ -13,6 +13,7 @@ from news_intelligence.intelligence import IntelligenceRefreshService
 from news_intelligence.models import MarketDataBar, MarketDataInterval
 from news_intelligence.outputs.final_intelligence import FinalIntelligenceOutputService
 from news_intelligence.pipeline import NewsIntelligencePipeline
+from news_intelligence.progress import progress_store
 from news_intelligence.sources.eodhd_news import EodhdNewsConnector
 from news_intelligence.sources.official_feeds import OfficialFeedConnector
 from news_intelligence.storage import RepositoryBundle
@@ -263,6 +264,9 @@ def test_intelligence_backfill_runs_range_through_pipeline(
         "to": "2021-12-31",
     }
     assert (output_dir / f"{result['automation_run_id']}_manifest.json").exists()
+    progress = progress_store.get(str(result["automation_run_id"]))
+    assert progress is not None
+    assert progress["status"] == "complete"
 
 
 def test_official_feed_connector_parses_rss() -> None:

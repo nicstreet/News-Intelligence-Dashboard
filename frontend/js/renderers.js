@@ -628,6 +628,60 @@
     }).join("");
   }
 
+  function renderRunProgress(progress) {
+    if (!progress || progress.status === "idle") {
+      return `<div class="progress-shell muted-text">No active run.</div>`;
+    }
+    const connectorIndex = Number(progress.connector_index || 0);
+    const connectorTotal = Number(progress.connector_total || 0);
+    const recordIndex = Number(progress.record_index || 0);
+    const recordTotal = Number(progress.record_total || 0);
+    const symbolIndex = Number(progress.market_symbol_index || 0);
+    const symbolTotal = Number(progress.market_symbol_total || 0);
+    const connectorLabel = progress.connector_name
+      ? `${escapeHtml(progress.connector_name)} (${connectorIndex || 0} of ${connectorTotal || 0})`
+      : "Connector n/a";
+    const recordLabel = recordTotal > 0
+      ? `Record ${recordIndex || 0} of ${recordTotal}`
+      : "Record n/a";
+    const marketLabel = symbolTotal > 0
+      ? `Market data ${escapeHtml(progress.market_symbol || "n/a")} (${symbolIndex} of ${symbolTotal})`
+      : "Market data n/a";
+    const percentComplete = runProgressPercent(progress);
+    return `<div class="progress-shell">
+      <div class="progress-topline">
+        <strong>${upper(progress.status)}</strong>
+        <span>${upper(progress.phase)}</span>
+        <span>${escapeHtml(progress.message || "")}</span>
+      </div>
+      <div class="progress-track" aria-label="Run progress">
+        <span class="progress-fill" style="width: ${percentComplete}%"></span>
+      </div>
+      <div class="progress-grid">
+        ${metric("Connector", connectorLabel)}
+        ${metric("Record", recordLabel)}
+        ${metric("Market data", marketLabel)}
+        ${metric("Counts", `${progress.ingested_count || 0} ingested / ${progress.exported_count || 0} exported`)}
+      </div>
+    </div>`;
+  }
+
+  function runProgressPercent(progress) {
+    if (progress.status === "complete") return 100;
+    if (progress.status === "error") return 100;
+    const recordTotal = Number(progress.record_total || 0);
+    const recordIndex = Number(progress.record_index || 0);
+    if (recordTotal > 0) {
+      return Math.max(4, Math.min(95, Math.round((recordIndex / recordTotal) * 100)));
+    }
+    const connectorTotal = Number(progress.connector_total || 0);
+    const connectorIndex = Number(progress.connector_index || 0);
+    if (connectorTotal > 0) {
+      return Math.max(4, Math.min(80, Math.round((connectorIndex / connectorTotal) * 100)));
+    }
+    return progress.status === "running" ? 12 : 0;
+  }
+
   function directionClass(direction) {
     const value = upper(direction);
     if (value === "LONG" || value === "BULLISH") return "direction-BULLISH";
@@ -870,6 +924,7 @@
     renderCalibrationOutcomeSummary,
     renderCalibrationOutcomes,
     renderFinalIntelligenceRows,
+    renderRunProgress,
     renderFileDropStatus,
     renderMarketBars,
     renderMarketRequests,

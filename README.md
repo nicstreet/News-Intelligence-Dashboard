@@ -73,7 +73,8 @@ The dashboard is served by FastAPI at `/` and uses vanilla HTML, CSS, and JavaSc
 
 It is organised as a left-navigation operational console:
 
-- `Intelligence`: default clean output view; on load the app checks sources, processes deltas, refreshes market-data joins, exports changed JSON, and displays table/JSON output.
+- `Intelligence`: default clean output view; on load the app checks sources, processes deltas, refreshes market-data joins, exports changed JSON, and displays table/JSON output with live run progress.
+- `Historical`: date-range EODHD news backfills, market-data joins and date-scoped JSON export.
 - `Overview`: current analysis, pipeline status, recent events, and automation health.
 - `Sources`: connector status, due/stale checks, SEC polling, world-news polling, and ingested source records.
 - `Events`: recent events, clusters, update/duplicate counts, and event audit trail.
@@ -103,7 +104,7 @@ For the normal user workflow:
 2. Wait for the `Intelligence` view to finish its automatic update cycle.
 3. Review the clean output table, or toggle to raw JSON.
 4. Use `Update Now` to run the same delta cycle manually.
-5. For historical exports, enter a `From` and `To` date in the Intelligence view and run `Backfill`.
+5. For historical exports, open `Historical`, enter a `From` and `To` date, then run `Backfill`.
 6. Consume exported JSON from the configured file-drop outbox.
 
 Diagnostic views remain available for source, event, market-data, calibration and JSON audit inspection.
@@ -213,6 +214,7 @@ Implemented endpoints:
 | `GET` | `/intelligence/output` | List clean user-facing intelligence output records |
 | `POST` | `/intelligence/refresh` | Run source deltas, market-data joins, final output build and delta JSON export |
 | `POST` | `/intelligence/backfill` | Fetch EODHD news for a date range, run the normal intelligence cycle and export date-scoped JSON deltas |
+| `GET` | `/intelligence/progress` | Show active/latest intelligence run progress for dashboard polling |
 | `GET` | `/calibration/report` | Build the current calibration profile report |
 | `GET` | `/calibration/outcomes` | Join persisted news signals to cached market data and calculate forward returns |
 | `POST` | `/market-data/eodhd/fetch` | Fetch and cache bounded EODHD daily or intraday bars |
@@ -383,6 +385,14 @@ Historical EODHD financial-news backfills use the same connector and output pipe
 ```
 
 fetches news in that period, prevents duplicate source records, runs the normal event pipeline, refreshes available market-data joins and writes a date-scoped export manifest.
+
+File-drop output currently has three file types:
+
+- Final intelligence record files: one JSON file per changed event/signal/instrument output.
+- Run manifest files: one JSON summary per refresh/backfill run, listing exported and skipped records.
+- Manual signal exports: legacy single-signal JSON files created only by the File Drop export controls.
+
+Historical market data fetched from EODHD is stored in SQLite `market_bars`; each provider request is audited in `market_data_requests`.
 
 Official RSS/Atom source expansion is configured in `config/official-sources.yaml`. The registry includes the first wave of core markets and placeholders for further regional disclosure/macro authorities. Enable only feeds with verified URLs and acceptable usage terms.
 

@@ -15,6 +15,7 @@ from news_intelligence.models import MarketDataInterval
 from news_intelligence.outputs.file_drop import FileDropExporter
 from news_intelligence.outputs.final_intelligence import FinalIntelligenceOutputService
 from news_intelligence.pipeline import NewsIntelligencePipeline
+from news_intelligence.progress import progress_store
 from news_intelligence.schemas.export import public_json_schemas
 from news_intelligence.sources.background import SourceAutomationBackgroundRunner
 from news_intelligence.sources.eodhd_news import EodhdNewsConnector
@@ -255,7 +256,7 @@ async def intelligence_output(limit: int = 500) -> dict[str, Any]:
 
 
 @router.post("/intelligence/refresh")
-async def intelligence_refresh(
+def intelligence_refresh(
     force: bool = False,
     export_delta: bool = True,
     limit: int = 500,
@@ -268,7 +269,7 @@ async def intelligence_refresh(
 
 
 @router.post("/intelligence/backfill")
-async def intelligence_backfill(payload: dict[str, Any] = BACKFILL_PAYLOAD) -> dict[str, Any]:
+def intelligence_backfill(payload: dict[str, Any] = BACKFILL_PAYLOAD) -> dict[str, Any]:
     try:
         start = _parse_date(str(payload["from"]))
         end = _parse_date(str(payload["to"]))
@@ -291,6 +292,18 @@ async def intelligence_backfill(payload: dict[str, Any] = BACKFILL_PAYLOAD) -> d
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Intelligence backfill failed: {exc}") from exc
+
+
+@router.get("/intelligence/progress")
+async def intelligence_progress(run_id: str | None = None) -> dict[str, Any]:
+    progress = progress_store.get(run_id)
+    if progress is None:
+        return {
+            "status": "idle",
+            "phase": "idle",
+            "message": "No intelligence run has started.",
+        }
+    return progress
 
 
 @router.get("/calibration/report")

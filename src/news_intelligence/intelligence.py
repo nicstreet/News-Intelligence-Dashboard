@@ -8,6 +8,7 @@ from news_intelligence.market_data.service import MarketDataService
 from news_intelligence.models import MarketDataInterval
 from news_intelligence.outputs.final_intelligence import FinalIntelligenceOutputService
 from news_intelligence.pipeline import NewsIntelligencePipeline
+from news_intelligence.progress import progress_store
 from news_intelligence.sources.eodhd_news import EodhdNewsConnector
 from news_intelligence.sources.scheduler import SourceScheduler
 from news_intelligence.sources.service import SourceIngestionService
@@ -31,18 +32,26 @@ class IntelligenceRefreshService:
         errors: list[str] = []
         source_run_payloads: list[dict[str, Any]] = []
         market_data_runs: list[dict[str, Any]] = []
+        progress_store.start(run_id, reason="intelligence_refresh")
+
+        def progress(updates: dict[str, Any]) -> None:
+            progress_store.update(run_id, **updates)
 
         try:
-            source_runs = SourceScheduler(self._pipeline).poll_due(force=force_sources)
+            source_runs = SourceScheduler(self._pipeline).poll_due(
+                force=force_sources,
+                progress=progress,
+            )
             source_run_payloads = [run.model_dump(mode="json") for run in source_runs]
         except Exception as exc:
             errors.append(f"source_poll: {exc}")
 
         try:
-            market_data_runs = self._refresh_market_data(limit=limit)
+            market_data_runs = self._refresh_market_data(limit=limit, progress=progress)
         except Exception as exc:
             errors.append(f"market_data: {exc}")
 
+        progress({"phase": "joining_outcomes", "message": "Joining news signals to market data"})
         outcomes = JoinedOutcomeAnalysisService(
             self._pipeline.repositories,
             FavouritesUniverseService(self._pipeline.config),
@@ -51,6 +60,7 @@ class IntelligenceRefreshService:
             self._pipeline.config,
             self._pipeline.repositories,
         )
+        progress({"phase": "exporting", "message": "Writing changed final JSON records"})
         export_manifest = (
             output_service.export_delta(limit=limit, run_id=run_id) if export_delta else None
         )
@@ -85,6 +95,19 @@ class IntelligenceRefreshService:
             "retention_result": None,
         }
         self._pipeline.repositories.automation_runs.save(run_id, payload)
+        progress_store.finish(
+            run_id,
+            status="error" if errors else "complete",
+            message=(
+                f"{output.get('record_count', 0)} records, "
+                f"{payload['exported_count']} exported"
+            ),
+            fetched_count=payload["fetched_count"],
+            ingested_count=payload["ingested_count"],
+            skipped_count=payload["skipped_count"],
+            exported_count=payload["exported_count"],
+            error_count=payload["error_count"],
+        )
         return {**payload, "output": output}
 
     def backfill(
@@ -115,10 +138,24 @@ class IntelligenceRefreshService:
         errors: list[str] = []
         source_run_payloads: list[dict[str, Any]] = []
         market_data_runs: list[dict[str, Any]] = []
+        progress_store.start(run_id, reason="historical_backfill")
+
+        def progress(updates: dict[str, Any]) -> None:
+            progress_store.update(run_id, **updates)
 
         connector = EodhdNewsConnector(self._pipeline.config, clock=self._pipeline.clock)
         ingestion = SourceIngestionService(self._pipeline)
         try:
+            progress(
+                {
+                    "phase": "fetching_source",
+                    "message": f"Fetching {connector.source_name} from {start} to {end}",
+                    "connector_name": connector.source_name,
+                    "connector_type": connector.connector_type,
+                    "connector_index": 1,
+                    "connector_total": 1,
+                }
+            )
             records = connector.fetch_range(
                 start=start,
                 end=end,
@@ -128,7 +165,13 @@ class IntelligenceRefreshService:
                 limit=page_limit,
                 max_pages=max_pages,
             )
-            source_run = ingestion.ingest_fetched(connector, records)
+            source_run = ingestion.ingest_fetched(
+                connector,
+                records,
+                progress=progress,
+                connector_index=1,
+                connector_total=1,
+            )
             source_run_payloads = [source_run.model_dump(mode="json")]
         except Exception as exc:
             errors.append(f"source_backfill: {exc}")
@@ -138,10 +181,12 @@ class IntelligenceRefreshService:
                 limit=limit,
                 start=start,
                 end=end,
+                progress=progress,
             )
         except Exception as exc:
             errors.append(f"market_data: {exc}")
 
+        progress({"phase": "joining_outcomes", "message": "Joining backfilled news to market data"})
         outcomes = JoinedOutcomeAnalysisService(
             self._pipeline.repositories,
             FavouritesUniverseService(self._pipeline.config),
@@ -150,6 +195,7 @@ class IntelligenceRefreshService:
             self._pipeline.config,
             self._pipeline.repositories,
         )
+        progress({"phase": "exporting", "message": "Writing historical JSON export"})
         export_manifest = (
             output_service.export_delta(
                 limit=limit,
@@ -197,6 +243,19 @@ class IntelligenceRefreshService:
             "retention_result": None,
         }
         self._pipeline.repositories.automation_runs.save(run_id, payload)
+        progress_store.finish(
+            run_id,
+            status="error" if errors else "complete",
+            message=(
+                f"{output.get('record_count', 0)} historical records, "
+                f"{payload['exported_count']} exported"
+            ),
+            fetched_count=payload["fetched_count"],
+            ingested_count=payload["ingested_count"],
+            skipped_count=payload["skipped_count"],
+            exported_count=payload["exported_count"],
+            error_count=payload["error_count"],
+        )
         return {**payload, "output": output}
 
     def _refresh_market_data(
@@ -205,6 +264,7 @@ class IntelligenceRefreshService:
         limit: int,
         start: date | None = None,
         end: date | None = None,
+        progress: Any | None = None,
     ) -> list[dict[str, Any]]:
         settings = self._market_data_settings()
         if not settings.get("enabled", True):
@@ -225,11 +285,20 @@ class IntelligenceRefreshService:
             request_end = min(today, end + timedelta(days=35))
             if request_start > request_end:
                 return []
-            for candidate in self._symbols_in_event_window(
+            candidates = self._symbols_in_event_window(
                 start=start,
                 end=end,
                 limit=limit,
-            )[:max_symbols]:
+            )[:max_symbols]
+            for index, candidate in enumerate(candidates, start=1):
+                self._progress(
+                    progress,
+                    phase="fetching_market_data",
+                    message=f"Fetching EODHD daily bars for {candidate['symbol']}",
+                    market_symbol=candidate["symbol"],
+                    market_symbol_index=index,
+                    market_symbol_total=len(candidates),
+                )
                 if self._has_daily_bar_coverage(
                     symbol=candidate["symbol"],
                     exchange=candidate["exchange"],
@@ -248,7 +317,16 @@ class IntelligenceRefreshService:
             return results
 
         symbols = self._symbols_requiring_market_data(limit=limit)
-        for candidate in symbols[:max_symbols]:
+        candidates = symbols[:max_symbols]
+        for index, candidate in enumerate(candidates, start=1):
+            self._progress(
+                progress,
+                phase="fetching_market_data",
+                message=f"Fetching EODHD daily bars for {candidate['symbol']}",
+                market_symbol=candidate["symbol"],
+                market_symbol_index=index,
+                market_symbol_total=len(candidates),
+            )
             start = max(
                 candidate["event_date"] - timedelta(days=1),
                 today - timedelta(days=lookback_days),
@@ -272,6 +350,10 @@ class IntelligenceRefreshService:
                 )
             )
         return results
+
+    def _progress(self, progress: Any | None, **updates: Any) -> None:
+        if progress is not None:
+            progress(updates)
 
     def _symbols_in_event_window(
         self,

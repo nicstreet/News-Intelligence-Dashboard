@@ -7,6 +7,7 @@ const MOCK_MODE = false;
     intelligenceOutput: "/intelligence/output",
     intelligenceRefresh: "/intelligence/refresh",
     intelligenceBackfill: "/intelligence/backfill",
+    intelligenceProgress: "/intelligence/progress",
     events: "/news/events",
     eventDetail: (eventId) => `/news/events/${encodeURIComponent(eventId)}/detail`,
     clusters: (clusterId) => `/news/clusters/${encodeURIComponent(clusterId)}`,
@@ -114,6 +115,13 @@ const MOCK_MODE = false;
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify(payload)
     });
+  }
+
+  async function intelligenceProgress() {
+    if (useMockMode()) {
+      return {status: "idle", phase: "idle", message: "Mock mode idle"};
+    }
+    return request(ENDPOINTS.intelligenceProgress);
   }
 
   async function recentEvents() {
@@ -339,6 +347,7 @@ const MOCK_MODE = false;
     intelligenceOutput,
     intelligenceRefresh,
     intelligenceBackfill,
+    intelligenceProgress,
     recentEvents,
     eventDetail,
     sourceStatus,
