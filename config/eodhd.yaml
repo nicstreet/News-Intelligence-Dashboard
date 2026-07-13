@@ -26,6 +26,7 @@ exchange_suffixes:
   NYSE: US
   LSE: LSE
 symbol_overrides:
+  "000660": 000660.KO
   VIX: VIX.INDX
 news:
   enabled: true

@@ -41,6 +41,7 @@ def test_eodhd_client_converts_daily_bars_and_symbols() -> None:
 
     assert client.eodhd_symbol("AAPL", "NASDAQ") == "AAPL.US"
     assert client.eodhd_symbol("SEMG.L", "LSE") == "SEMG.LSE"
+    assert client.eodhd_symbol("000660") == "000660.KO"
     assert client.eodhd_symbol("VIX", "CBOE") == "VIX.INDX"
     assert len(bars) == 2
     assert bars[0].symbol == "AAPL"
