@@ -443,6 +443,43 @@
             </div>
             <button id="refresh-market-data" class="btn" type="button">Refresh</button>
           </div>
+          <div class="fixture-row">
+            <label for="market-data-from">From</label>
+            <input id="market-data-from" type="date">
+            <label for="market-data-to">To</label>
+            <input id="market-data-to" type="date">
+            <label class="inline-control">
+              <input id="market-data-include-benchmarks" type="checkbox" checked>
+              Benchmarks
+            </label>
+            <button id="run-market-data-backfill" class="btn active" type="button">Populate History</button>
+            <span id="market-data-backfill-status" class="status-pill muted">Market data: idle</span>
+          </div>
+          <div id="market-data-progress" class="run-progress"></div>
+          <pre id="market-data-backfill-result" class="hidden"></pre>
+          <div id="market-data-summary" class="metric-grid"></div>
+          <div>
+            <div class="card-title"><span class="dot emerald"></span>Coverage By Ticker</div>
+            <div class="table-wrap">
+              <table class="mini">
+                <thead>
+                  <tr>
+                    <th>Symbol</th>
+                    <th>Exchange</th>
+                    <th>Interval</th>
+                    <th>Bars</th>
+                    <th>First Date</th>
+                    <th>Last Date</th>
+                    <th>Latest Close</th>
+                    <th>Latest Volume</th>
+                    <th>Last Request</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody id="market-coverage"></tbody>
+              </table>
+            </div>
+          </div>
           <div class="market-data-grid">
             <div>
               <div class="card-title"><span class="dot indigo"></span>Recent Bars</div>

@@ -10,6 +10,7 @@ from news_intelligence.calibration.outcomes import JoinedOutcomeAnalysisService
 from news_intelligence.calibration.service import HistoricalCalibrationService
 from news_intelligence.ingestion.adapters import coerce_raw_news_items
 from news_intelligence.intelligence import IntelligenceRefreshService
+from news_intelligence.market_data.history import MarketDataHistoryBackfillService
 from news_intelligence.market_data.service import MarketDataService
 from news_intelligence.models import MarketDataInterval
 from news_intelligence.outputs.file_drop import FileDropExporter
@@ -33,6 +34,7 @@ automation_runner: SourceAutomationBackgroundRunner | None = None
 NEWS_PAYLOAD = Body(...)
 RETENTION_PAYLOAD = Body(default=None)
 MARKET_DATA_PAYLOAD = Body(...)
+MARKET_DATA_HISTORY_PAYLOAD = Body(...)
 BACKFILL_PAYLOAD = Body(...)
 
 
@@ -372,6 +374,47 @@ async def recent_market_bars(limit: int = 50) -> list[dict[str, Any]]:
 @router.get("/market-data/requests/recent")
 async def recent_market_data_requests(limit: int = 50) -> list[dict[str, Any]]:
     return MarketDataService(pipeline.config, pipeline.repositories).recent_requests(limit=limit)
+
+
+@router.get("/market-data/coverage")
+async def market_data_coverage() -> dict[str, Any]:
+    return MarketDataService(pipeline.config, pipeline.repositories).coverage_summary()
+
+
+@router.post("/market-data/eodhd/backfill")
+def populate_eodhd_market_data_history(
+    payload: dict[str, Any] = MARKET_DATA_HISTORY_PAYLOAD,
+) -> dict[str, Any]:
+    try:
+        start = _parse_date(str(payload["from"]))
+        end = _parse_date(str(payload["to"]))
+        symbols_payload = payload.get("symbols")
+        symbols = (
+            [str(symbol).upper() for symbol in symbols_payload if symbol]
+            if isinstance(symbols_payload, list)
+            else None
+        )
+        max_symbols = payload.get("max_symbols")
+        return MarketDataHistoryBackfillService(
+            pipeline.config,
+            pipeline.repositories,
+            clock=pipeline.clock,
+        ).populate_daily_history(
+            start=start,
+            end=end,
+            include_benchmarks=bool(payload.get("include_benchmarks", True)),
+            symbols=symbols,
+            max_symbols=int(max_symbols) if max_symbols is not None else None,
+        )
+    except KeyError as exc:
+        raise HTTPException(status_code=422, detail=f"Missing required field: {exc}") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"EODHD market-data history backfill failed: {exc}",
+        ) from exc
 
 
 @router.get("/outputs/file-drop/status")

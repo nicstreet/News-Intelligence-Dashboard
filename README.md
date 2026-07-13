@@ -105,7 +105,8 @@ For the normal user workflow:
 3. Review the clean output table, or toggle to raw JSON.
 4. Use `Update Now` to run the same delta cycle manually.
 5. For historical exports, open `Historical`, enter a `From` and `To` date, then run `Backfill`.
-6. Consume exported JSON from the configured file-drop outbox.
+6. To populate market-data history, open `Market Data`, enter a `From` and `To` date, keep `Benchmarks` enabled, then run `Populate History`.
+7. Consume exported JSON from the configured file-drop outbox.
 
 Diagnostic views remain available for source, event, market-data, calibration and JSON audit inspection.
 
@@ -218,6 +219,8 @@ Implemented endpoints:
 | `GET` | `/calibration/report` | Build the current calibration profile report |
 | `GET` | `/calibration/outcomes` | Join persisted news signals to cached market data and calculate forward returns |
 | `POST` | `/market-data/eodhd/fetch` | Fetch and cache bounded EODHD daily or intraday bars |
+| `POST` | `/market-data/eodhd/backfill` | Populate EODHD daily market-data history for the configured universe and benchmarks |
+| `GET` | `/market-data/coverage` | Summarise cached market-data coverage by ticker, exchange and interval |
 | `GET` | `/market-data/bars/recent` | List recently cached market-data bars |
 | `GET` | `/market-data/requests/recent` | List recent market-data request audit records |
 | `GET` | `/outputs/file-drop/status` | Show file-drop output configuration |

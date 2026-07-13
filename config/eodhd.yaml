@@ -25,6 +25,8 @@ exchange_suffixes:
   NASDAQ: US
   NYSE: US
   LSE: LSE
+symbol_overrides:
+  VIX: VIX.INDX
 news:
   enabled: true
   source_name: EODHD Financial News

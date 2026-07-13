@@ -12,6 +12,7 @@
     calibration: null,
     calibrationOutcomes: null,
     fileDrop: null,
+    marketCoverage: null,
     marketBars: [],
     marketRequests: [],
     storage: null,
@@ -65,6 +66,9 @@
       "intelligence-toggle-json", "intelligence-output-table", "intelligence-output-json",
       "backfill-from", "backfill-to", "run-intelligence-backfill", "intelligence-backfill-status",
       "intelligence-progress", "historical-progress", "historical-result-json",
+      "market-data-from", "market-data-to", "market-data-include-benchmarks",
+      "run-market-data-backfill", "market-data-backfill-status", "market-data-progress",
+      "market-data-backfill-result",
       "toggle-input-mode", "structured-input", "json-input-wrap", "raw-json", "headline",
       "body", "source-name", "source-type", "source-url", "published-at", "known-ticker",
       "country", "market", "clear-form", "event-summary", "pipeline", "impact-sort",
@@ -90,7 +94,8 @@
       "retention-apply-status", "sidebar-intelligence-count", "sidebar-events-count", "sidebar-signals-count",
       "sidebar-sources-status", "sidebar-universe-count", "sidebar-calibration-count",
       "sidebar-file-drop-status", "sidebar-market-data-count", "sidebar-historical-status", "sidebar-active-watch",
-      "page-heading", "page-subtitle", "refresh-market-data", "market-bars", "market-requests"
+      "page-heading", "page-subtitle", "refresh-market-data", "market-data-summary",
+      "market-coverage", "market-bars", "market-requests"
     ].forEach((id) => {
       elements[id] = document.getElementById(id);
     });
@@ -162,6 +167,7 @@
     elements["refresh-calibration"].addEventListener("click", refreshCalibration);
     elements["refresh-file-drop"].addEventListener("click", refreshFileDrop);
     elements["refresh-market-data"].addEventListener("click", refreshMarketData);
+    elements["run-market-data-backfill"].addEventListener("click", runMarketDataBackfill);
     elements["refresh-storage"].addEventListener("click", refreshStorage);
     elements["dry-run-retention"].addEventListener("click", dryRunRetention);
     elements["apply-retention-policy"].addEventListener("click", applyRetentionPolicy);
@@ -458,6 +464,12 @@
   }
 
   function renderMarketData() {
+    elements["market-data-summary"].innerHTML = window.NewsRenderers.renderMarketDataSummary(
+      state.marketCoverage
+    );
+    elements["market-coverage"].innerHTML = window.NewsRenderers.renderMarketCoverage(
+      state.marketCoverage
+    );
     elements["market-bars"].innerHTML = window.NewsRenderers.renderMarketBars(state.marketBars);
     elements["market-requests"].innerHTML = window.NewsRenderers.renderMarketRequests(state.marketRequests);
   }
@@ -659,6 +671,49 @@
     }
   }
 
+  async function runMarketDataBackfill() {
+    hideError();
+    const from = elements["market-data-from"].value;
+    const to = elements["market-data-to"].value;
+    if (!from || !to) {
+      showError({stage: "Market Data", message: "Enter both from and to dates.", requestId: "not submitted"});
+      return;
+    }
+    if (to < from) {
+      showError({stage: "Market Data", message: "The to date must be on or after the from date.", requestId: "not submitted"});
+      return;
+    }
+    setMarketDataBackfillStatus("Market data: loading...", "processing");
+    elements["run-market-data-backfill"].disabled = true;
+    elements["market-data-backfill-result"].classList.add("hidden");
+    const stopProgress = startProgressPolling("market-data");
+    try {
+      const result = await window.NewsApi.marketDataBackfill({
+        from,
+        to,
+        include_benchmarks: Boolean(elements["market-data-include-benchmarks"].checked)
+      });
+      state.lastResponse = result;
+      elements["market-data-backfill-result"].textContent = JSON.stringify(result, null, 2);
+      elements["market-data-backfill-result"].classList.remove("hidden");
+      await refreshMarketData();
+      await refreshStorage();
+      await refreshCalibration();
+      renderDeveloper();
+      setMarketDataBackfillStatus(
+        `Market data: ${result.records_stored || 0} bars, ${result.request_count || 0} requests`,
+        result.error_count ? "error" : ""
+      );
+    } catch (error) {
+      setMarketDataBackfillStatus("Market data: failed", "error");
+      showError(error);
+    } finally {
+      stopProgress();
+      await refreshProgress("market-data");
+      elements["run-market-data-backfill"].disabled = false;
+    }
+  }
+
   function startProgressPolling(scope) {
     refreshProgress(scope);
     const timer = window.setInterval(() => refreshProgress(scope), 700);
@@ -681,6 +736,8 @@
     const html = window.NewsRenderers.renderRunProgress(state.latestProgress);
     if (scope === "historical") {
       elements["historical-progress"].innerHTML = html;
+    } else if (scope === "market-data") {
+      elements["market-data-progress"].innerHTML = html;
     } else {
       elements["intelligence-progress"].innerHTML = html;
     }
@@ -774,15 +831,18 @@
 
   async function refreshMarketData() {
     try {
-      const [bars, requests] = await Promise.all([
+      const [coverage, bars, requests] = await Promise.all([
+        window.NewsApi.marketCoverage(),
         window.NewsApi.marketBars(),
         window.NewsApi.marketRequests()
       ]);
+      state.marketCoverage = coverage || null;
       state.marketBars = bars || [];
       state.marketRequests = requests || [];
       renderMarketData();
       renderSidebar();
     } catch (error) {
+      state.marketCoverage = null;
       state.marketBars = [];
       state.marketRequests = [];
       if (!window.NewsApi.isMockMode()) {
@@ -1154,7 +1214,10 @@
     setText("sidebar-universe-count", String(state.universe && state.universe.instruments ? state.universe.instruments.length : 0));
     setText("sidebar-calibration-count", String(state.calibration && state.calibration.signal_count ? state.calibration.signal_count : 0));
     setText("sidebar-file-drop-status", state.fileDrop && state.fileDrop.enabled ? "On" : "Idle");
-    setText("sidebar-market-data-count", String((state.marketBars || []).length));
+    setText(
+      "sidebar-market-data-count",
+      String(state.marketCoverage ? state.marketCoverage.covered_symbol_count || 0 : 0)
+    );
     setText("sidebar-historical-status", progressSidebarLabel());
     if (elements["sidebar-active-watch"]) {
       elements["sidebar-active-watch"].innerHTML = window.NewsRenderers.renderSidebarWatch(
@@ -1204,6 +1267,14 @@
     status.classList.toggle("error", stateClass === "error");
   }
 
+  function setMarketDataBackfillStatus(message, stateClass) {
+    const status = elements["market-data-backfill-status"];
+    status.textContent = message;
+    status.classList.toggle("muted", !stateClass);
+    status.classList.toggle("processing", stateClass === "processing");
+    status.classList.toggle("error", stateClass === "error");
+  }
+
   function showError(error) {
     elements["error-panel"].innerHTML = window.NewsRenderers.renderError(error);
     elements["error-panel"].classList.remove("hidden");
@@ -1236,6 +1307,12 @@
     }
     if (elements["backfill-to"] && !elements["backfill-to"].value) {
       elements["backfill-to"].value = now.toISOString().slice(0, 10);
+    }
+    if (elements["market-data-from"] && !elements["market-data-from"].value) {
+      elements["market-data-from"].value = "2021-01-01";
+    }
+    if (elements["market-data-to"] && !elements["market-data-to"].value) {
+      elements["market-data-to"].value = now.toISOString().slice(0, 10);
     }
   }
 

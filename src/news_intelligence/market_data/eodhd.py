@@ -100,6 +100,11 @@ class EodhdMarketDataClient:
     def eodhd_symbol(self, symbol: str, exchange: str | None = None) -> str:
         clean_symbol = symbol.upper().strip()
         clean_exchange = exchange.upper().strip() if exchange else ""
+        overrides = self._settings.get("symbol_overrides", {})
+        override_map = overrides if isinstance(overrides, dict) else {}
+        if clean_symbol in override_map:
+            return str(override_map[clean_symbol]).upper()
+
         suffixes = self._settings.get("exchange_suffixes", {})
         suffix_map = suffixes if isinstance(suffixes, dict) else {}
 

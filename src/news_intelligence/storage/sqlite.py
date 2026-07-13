@@ -251,6 +251,69 @@ class MarketBarRepository:
             ).fetchall()
         return [self._bar_from_row(row).model_dump(mode="json") for row in rows]
 
+    def coverage_summary(self) -> list[dict[str, Any]]:
+        with sqlite3.connect(self.db_path) as connection:
+            rows = connection.execute(
+                """
+                WITH latest AS (
+                    SELECT
+                        symbol,
+                        exchange,
+                        interval,
+                        timestamp_utc,
+                        close,
+                        adjusted_close,
+                        volume,
+                        loaded_at,
+                        ROW_NUMBER() OVER (
+                            PARTITION BY symbol, exchange, interval
+                            ORDER BY timestamp_utc DESC
+                        ) AS rank
+                    FROM market_bars
+                )
+                SELECT
+                    bars.symbol,
+                    bars.exchange,
+                    bars.interval,
+                    COUNT(*) AS bar_count,
+                    MIN(bars.timestamp_utc) AS first_timestamp_utc,
+                    MAX(bars.timestamp_utc) AS last_timestamp_utc,
+                    MAX(bars.loaded_at) AS last_loaded_at,
+                    latest.close AS latest_close,
+                    latest.adjusted_close AS latest_adjusted_close,
+                    latest.volume AS latest_volume
+                FROM market_bars AS bars
+                JOIN latest
+                  ON latest.symbol = bars.symbol
+                 AND latest.exchange = bars.exchange
+                 AND latest.interval = bars.interval
+                 AND latest.rank = 1
+                GROUP BY
+                    bars.symbol,
+                    bars.exchange,
+                    bars.interval,
+                    latest.close,
+                    latest.adjusted_close,
+                    latest.volume
+                ORDER BY bars.symbol, bars.exchange, bars.interval
+                """
+            ).fetchall()
+        return [
+            {
+                "symbol": str(row[0]),
+                "exchange": str(row[1]) or None,
+                "interval": str(row[2]),
+                "bar_count": int(row[3]),
+                "first_timestamp_utc": str(row[4]),
+                "last_timestamp_utc": str(row[5]),
+                "last_loaded_at": str(row[6]),
+                "latest_close": float(row[7]),
+                "latest_adjusted_close": float(row[8]) if row[8] is not None else None,
+                "latest_volume": float(row[9]) if row[9] is not None else None,
+            }
+            for row in rows
+        ]
+
     def iter_rows(
         self,
         *,

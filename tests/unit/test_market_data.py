@@ -8,6 +8,7 @@ from pathlib import Path
 
 from news_intelligence.config import NewsIntelligenceConfig, load_config
 from news_intelligence.market_data.eodhd import EodhdMarketDataClient
+from news_intelligence.market_data.history import MarketDataHistoryBackfillService
 from news_intelligence.market_data.service import MarketDataService
 from news_intelligence.market_data.timing import EventMarketTimer
 from news_intelligence.models import (
@@ -16,6 +17,7 @@ from news_intelligence.models import (
     MarketSession,
     RuntimeEnvironment,
 )
+from news_intelligence.progress import progress_store
 from news_intelligence.storage import RepositoryBundle
 from news_intelligence.storage.retention import StorageLayerSummaryService
 
@@ -39,6 +41,7 @@ def test_eodhd_client_converts_daily_bars_and_symbols() -> None:
 
     assert client.eodhd_symbol("AAPL", "NASDAQ") == "AAPL.US"
     assert client.eodhd_symbol("SEMG.L", "LSE") == "SEMG.LSE"
+    assert client.eodhd_symbol("VIX", "CBOE") == "VIX.INDX"
     assert len(bars) == 2
     assert bars[0].symbol == "AAPL"
     assert bars[0].interval == MarketDataInterval.DAILY
@@ -83,12 +86,89 @@ def test_market_data_service_stores_bars_once_and_audits_request(
         end_at=datetime(2026, 7, 2, tzinfo=UTC),
     )
     request = repositories.market_data_requests.list_recent(1)[0]
+    coverage = service.coverage_summary()
+    coverage_row = next(
+        row for row in coverage["rows"] if row["symbol"] == "AAPL" and row["interval"] == "1d"
+    )
 
     assert first["records_stored"] == 2
     assert second["records_stored"] == 2
     assert len(bars) == 2
     assert request["estimated_api_call_cost"] == 1
     assert "dummy-token" not in json.dumps(request)
+    assert coverage["total_bar_count"] == 2
+    assert coverage_row["bar_count"] == 2
+    assert coverage_row["first_timestamp_utc"] == "2026-07-01T00:00:00+00:00"
+    assert coverage_row["last_timestamp_utc"] == "2026-07-02T00:00:00+00:00"
+    assert coverage_row["last_request_status"] == "success"
+
+
+def test_market_data_history_backfill_populates_universe_symbols(
+    isolated_database: Path,
+) -> None:
+    repositories = RepositoryBundle(isolated_database)
+    config = _eodhd_config()
+    client = EodhdMarketDataClient(
+        config,
+        fetcher=_daily_fetcher([]),
+        clock=lambda: FIXED_NOW,
+    )
+    market_data = MarketDataService(
+        config,
+        repositories,
+        client=client,
+        clock=lambda: FIXED_NOW,
+    )
+    service = MarketDataHistoryBackfillService(
+        config,
+        repositories,
+        clock=lambda: FIXED_NOW,
+        market_data_service=market_data,
+    )
+
+    first = service.populate_daily_history(
+        start=date(2026, 7, 1),
+        end=date(2026, 7, 2),
+        include_benchmarks=False,
+        symbols=["NVDA"],
+    )
+    second = service.populate_daily_history(
+        start=date(2026, 7, 1),
+        end=date(2026, 7, 2),
+        include_benchmarks=False,
+        symbols=["NVDA"],
+    )
+    explicit_benchmark = service.populate_daily_history(
+        start=date(2026, 7, 1),
+        end=date(2026, 7, 2),
+        include_benchmarks=False,
+        symbols=["ACWI"],
+    )
+    bars = repositories.market_bars.list_range(
+        symbol="NVDA",
+        exchange="NASDAQ",
+        interval=MarketDataInterval.DAILY,
+        start_at=datetime(2026, 7, 1, tzinfo=UTC),
+        end_at=datetime(2026, 7, 2, tzinfo=UTC),
+    )
+    benchmark_bars = repositories.market_bars.list_range(
+        symbol="ACWI",
+        exchange=None,
+        interval=MarketDataInterval.DAILY,
+        start_at=datetime(2026, 7, 1, tzinfo=UTC),
+        end_at=datetime(2026, 7, 2, tzinfo=UTC),
+    )
+    progress = progress_store.get(str(first["automation_run_id"]))
+
+    assert first["records_stored"] == 2
+    assert first["request_count"] == 1
+    assert second["request_count"] == 0
+    assert second["skipped_count"] == 1
+    assert explicit_benchmark["records_stored"] == 2
+    assert len(bars) == 2
+    assert len(benchmark_bars) == 2
+    assert progress is not None
+    assert progress["status"] == "complete"
 
 
 def test_market_data_layers_are_retention_managed(isolated_database: Path) -> None:

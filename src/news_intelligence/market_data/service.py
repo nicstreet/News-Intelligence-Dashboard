@@ -8,6 +8,7 @@ from news_intelligence.config import NewsIntelligenceConfig
 from news_intelligence.market_data.eodhd import EodhdMarketDataClient
 from news_intelligence.models import MarketDataInterval, MarketDataRequest, RuntimeEnvironment
 from news_intelligence.storage import RepositoryBundle
+from news_intelligence.universe import FavouritesUniverseService
 from news_intelligence.utils import stable_hash, to_utc
 
 
@@ -165,11 +166,103 @@ class MarketDataService:
     def recent_bars(self, limit: int = 50) -> list[dict[str, Any]]:
         return self._repositories.market_bars.list_recent(limit)
 
+    def coverage_summary(self) -> dict[str, Any]:
+        rows = self._repositories.market_bars.coverage_summary()
+        latest_requests = self._latest_requests_by_market_key()
+        enriched_rows: list[dict[str, Any]] = []
+        for row in rows:
+            key = self._market_key(
+                symbol=str(row["symbol"]),
+                exchange=row.get("exchange"),
+                interval=str(row["interval"]),
+            )
+            request = latest_requests.get(key, {})
+            enriched_rows.append(
+                {
+                    **row,
+                    "last_request_status": request.get("status"),
+                    "last_request_at": request.get("completed_at")
+                    or request.get("requested_at"),
+                    "last_request_from": request.get("requested_from"),
+                    "last_request_to": request.get("requested_to"),
+                    "last_request_error": request.get("error"),
+                }
+            )
+        configured_symbols = self._configured_symbols()
+        covered_symbols = {str(row["symbol"]).upper() for row in enriched_rows}
+        missing_symbols = sorted(configured_symbols - covered_symbols)
+        return {
+            "schema_version": "1.0.0",
+            "provider": "EODHD",
+            "record_count": len(enriched_rows),
+            "covered_symbol_count": len(covered_symbols),
+            "configured_symbol_count": len(configured_symbols),
+            "missing_configured_symbols": missing_symbols,
+            "total_bar_count": sum(int(row.get("bar_count", 0)) for row in enriched_rows),
+            "first_timestamp_utc": min(
+                (str(row["first_timestamp_utc"]) for row in enriched_rows),
+                default=None,
+            ),
+            "last_timestamp_utc": max(
+                (str(row["last_timestamp_utc"]) for row in enriched_rows),
+                default=None,
+            ),
+            "rows": enriched_rows,
+        }
+
     def _fetch_payload(self, request: MarketDataRequest) -> dict[str, Any]:
         return {
             **request.model_dump(mode="json"),
             "token_redacted": True,
         }
+
+    def _latest_requests_by_market_key(self) -> dict[tuple[str, str, str], dict[str, Any]]:
+        latest: dict[tuple[str, str, str], dict[str, Any]] = {}
+        for request in self._repositories.market_data_requests.list_all():
+            key = self._market_key(
+                symbol=str(request.get("symbol", "")),
+                exchange=request.get("exchange"),
+                interval=str(request.get("interval", "")),
+            )
+            current = latest.get(key)
+            request_time = str(request.get("completed_at") or request.get("requested_at") or "")
+            current_time = (
+                str(current.get("completed_at") or current.get("requested_at") or "")
+                if current
+                else ""
+            )
+            if current is None or request_time >= current_time:
+                latest[key] = request
+        return latest
+
+    def _configured_symbols(self) -> set[str]:
+        universe = FavouritesUniverseService(self._config).universe()
+        symbols = {instrument.symbol.upper() for instrument in universe.instruments}
+        symbols.update(
+            instrument.benchmark.upper()
+            for instrument in universe.instruments
+            if instrument.benchmark
+        )
+        default_benchmarks = universe.default_benchmarks or {}
+        symbols.update(
+            str(symbol).upper()
+            for symbol in default_benchmarks.values()
+            if symbol
+        )
+        return symbols
+
+    def _market_key(
+        self,
+        *,
+        symbol: str,
+        exchange: str | None,
+        interval: str,
+    ) -> tuple[str, str, str]:
+        return (
+            symbol.upper(),
+            str(exchange or "").upper(),
+            interval,
+        )
 
     def _request_id(
         self,

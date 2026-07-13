@@ -710,6 +710,47 @@
     ].join("");
   }
 
+  function renderMarketDataSummary(coverage) {
+    if (!coverage) {
+      return metric("Coverage", "No market-data coverage loaded");
+    }
+    const missing = coverage.missing_configured_symbols || [];
+    const range = coverage.first_timestamp_utc && coverage.last_timestamp_utc
+      ? `${dateOnly(coverage.first_timestamp_utc)} to ${dateOnly(coverage.last_timestamp_utc)}`
+      : "n/a";
+    return [
+      metric("Covered symbols", coverage.covered_symbol_count || 0),
+      metric("Configured symbols", coverage.configured_symbol_count || 0),
+      metric("Cached bars", coverage.total_bar_count || 0),
+      metric("Missing configured symbols", missing.length),
+      metric("Date range", range),
+      metric("Provider", coverage.provider || "n/a"),
+      metric("Coverage rows", coverage.record_count || 0),
+      metric("Missing symbols", missing.slice(0, 6).join(", ") || "none")
+    ].join("");
+  }
+
+  function renderMarketCoverage(coverage) {
+    const rows = coverage && coverage.rows ? coverage.rows : [];
+    if (rows.length === 0) {
+      return `<tr><td colspan="10">No cached market-data coverage available.</td></tr>`;
+    }
+    return [...rows]
+      .sort((left, right) => String(left.symbol).localeCompare(String(right.symbol)))
+      .map((row) => `<tr>
+        <td>${escapeHtml(row.symbol || "n/a")}</td>
+        <td>${escapeHtml(row.exchange || "n/a")}</td>
+        <td>${escapeHtml(row.interval || "n/a")}</td>
+        <td>${number(row.bar_count, 0)}</td>
+        <td>${escapeHtml(dateOnly(row.first_timestamp_utc))}</td>
+        <td>${escapeHtml(dateOnly(row.last_timestamp_utc))}</td>
+        <td>${number(row.latest_adjusted_close ?? row.latest_close, 2)}</td>
+        <td>${number(row.latest_volume, 0)}</td>
+        <td>${escapeHtml(dateOnly(row.last_request_at))}</td>
+        <td>${escapeHtml(upper(row.last_request_status || "n/a"))}</td>
+      </tr>`).join("");
+  }
+
   function renderMarketBars(bars) {
     if (!bars || bars.length === 0) {
       return `<tr><td colspan="9">No cached market bars available.</td></tr>`;
@@ -740,6 +781,13 @@
       <td>${escapeHtml(request.records_stored || 0)}</td>
       <td>${escapeHtml(request.estimated_api_call_cost || 0)}</td>
     </tr>`).join("");
+  }
+
+  function dateOnly(value) {
+    if (!value) {
+      return "n/a";
+    }
+    return String(value).split("T")[0];
   }
 
   function renderStorageSummary(storage, retention) {
@@ -926,6 +974,8 @@
     renderFinalIntelligenceRows,
     renderRunProgress,
     renderFileDropStatus,
+    renderMarketDataSummary,
+    renderMarketCoverage,
     renderMarketBars,
     renderMarketRequests,
     renderStorageSummary,

@@ -25,8 +25,10 @@ const MOCK_MODE = false;
     calibrationOutcomes: "/calibration/outcomes",
     fileDropStatus: "/outputs/file-drop/status",
     fileDropLatest: "/outputs/file-drop/latest",
+    marketCoverage: "/market-data/coverage",
     marketBars: "/market-data/bars/recent",
     marketRequests: "/market-data/requests/recent",
+    marketDataBackfill: "/market-data/eodhd/backfill",
     storageLayers: "/storage/layers",
     retentionDryRun: "/storage/retention/dry-run",
     retentionApply: "/storage/retention/apply",
@@ -235,11 +237,44 @@ const MOCK_MODE = false;
     return request(ENDPOINTS.marketBars);
   }
 
+  async function marketCoverage() {
+    if (useMockMode()) {
+      return {
+        schema_version: "mock",
+        record_count: 0,
+        covered_symbol_count: 0,
+        configured_symbol_count: 0,
+        missing_configured_symbols: [],
+        total_bar_count: 0,
+        rows: []
+      };
+    }
+    return request(ENDPOINTS.marketCoverage);
+  }
+
   async function marketRequests() {
     if (useMockMode()) {
       return [];
     }
     return request(ENDPOINTS.marketRequests);
+  }
+
+  async function marketDataBackfill(payload) {
+    if (useMockMode()) {
+      return {
+        automation_run_id: `mock_mkt_${Date.now()}`,
+        records_stored: 0,
+        symbol_count: 0,
+        request_count: 0,
+        skipped_count: 0,
+        errors: []
+      };
+    }
+    return request(ENDPOINTS.marketDataBackfill, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload)
+    });
   }
 
   async function storageLayers() {
@@ -361,8 +396,10 @@ const MOCK_MODE = false;
     calibrationReport,
     calibrationOutcomes,
     fileDropStatus,
+    marketCoverage,
     marketBars,
     marketRequests,
+    marketDataBackfill,
     storageLayers,
     storageRetentionDryRun,
     applyStorageRetention,

@@ -81,6 +81,10 @@ textarea {
   outline: none;
 }
 
+input[type="checkbox"] {
+  width: auto;
+}
+
 input:focus,
 select:focus,
 textarea:focus {
