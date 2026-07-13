@@ -225,13 +225,17 @@ def test_intelligence_backfill_runs_range_through_pipeline(
         repositories=RepositoryBundle(isolated_database),
         clock=lambda: FIXED_NOW,
     )
+    requested_urls: list[str] = []
 
     def fetch_text(
         _self: EodhdNewsConnector,
-        _url: str,
+        url: str,
         _headers: dict[str, str],
         _timeout: int,
     ) -> str:
+        requested_urls.append(url)
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+        assert query["s"] == ["NVDA"]
         return json.dumps(
             [
                 {
@@ -253,16 +257,21 @@ def test_intelligence_backfill_runs_range_through_pipeline(
         limit=100,
         page_limit=50,
         max_pages=1,
+        symbols=["NVDA"],
     )
 
     assert result["reason"] == "historical_backfill"
+    assert result["symbols"] == ["NVDA"]
     assert result["fetched_count"] == 1
     assert result["ingested_count"] == 1
     assert result["final_record_count"] >= 1
+    assert requested_urls
     assert result["export_manifest"]["date_range"] == {
         "from": "2021-01-01",
         "to": "2021-12-31",
     }
+    assert result["export_manifest"]["symbols"] == ["NVDA"]
+    assert result["output"]["symbols"] == ["NVDA"]
     assert (output_dir / f"{result['automation_run_id']}_manifest.json").exists()
     progress = progress_store.get(str(result["automation_run_id"]))
     assert progress is not None

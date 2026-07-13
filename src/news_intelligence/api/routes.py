@@ -279,6 +279,7 @@ def intelligence_backfill(payload: dict[str, Any] = BACKFILL_PAYLOAD) -> dict[st
         limit = max(1, min(int(payload.get("limit", 5_000)), 50_000))
         page_limit = payload.get("page_limit")
         max_pages = payload.get("max_pages")
+        symbols = _normalise_symbols_payload(payload.get("symbols"))
         return IntelligenceRefreshService(pipeline).backfill(
             start=start,
             end=end,
@@ -287,6 +288,7 @@ def intelligence_backfill(payload: dict[str, Any] = BACKFILL_PAYLOAD) -> dict[st
             limit=limit,
             page_limit=int(page_limit) if page_limit is not None else None,
             max_pages=int(max_pages) if max_pages is not None else None,
+            symbols=symbols,
         )
     except KeyError as exc:
         raise HTTPException(status_code=422, detail=f"Missing required field: {exc}") from exc
@@ -395,12 +397,7 @@ def populate_eodhd_market_data_history(
     try:
         start = _parse_date(str(payload["from"]))
         end = _parse_date(str(payload["to"]))
-        symbols_payload = payload.get("symbols")
-        symbols = (
-            [str(symbol).upper() for symbol in symbols_payload if symbol]
-            if isinstance(symbols_payload, list)
-            else None
-        )
+        symbols = _normalise_symbols_payload(payload.get("symbols"))
         max_symbols = payload.get("max_symbols")
         return MarketDataHistoryBackfillService(
             pipeline.config,
@@ -473,6 +470,19 @@ async def export_latest_to_file_drop(limit: int = 20) -> list[dict[str, Any]]:
 
 def _parse_date(value: str) -> date:
     return date.fromisoformat(value[:10])
+
+
+def _normalise_symbols_payload(value: Any) -> list[str] | None:
+    if not isinstance(value, list):
+        return None
+    symbols: list[str] = []
+    seen: set[str] = set()
+    for item in value:
+        symbol = str(item).strip().upper()
+        if symbol and symbol not in seen:
+            seen.add(symbol)
+            symbols.append(symbol)
+    return symbols or None
 
 
 def _parse_datetime(value: str) -> datetime:

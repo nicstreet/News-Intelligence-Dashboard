@@ -147,7 +147,7 @@
           </div>
           <div class="page-actions">
             <button id="refresh-event-list" class="btn active" type="button">Refresh</button>
-            <button id="run-automation-now" class="btn" type="button">Run Automation</button>
+            <button id="run-automation-now" class="btn" type="button" title="Poll due sources now and run configured housekeeping. Historical date/ticker backfills use the Historical page.">Run Automation</button>
             <span id="automation-run-status" class="status-pill muted">Automation: idle</span>
           </div>
         </section>
@@ -202,6 +202,17 @@
             <label for="backfill-to">To</label>
             <input id="backfill-to" type="date">
             <button id="run-intelligence-backfill" class="btn active" type="button">Run Backfill</button>
+          </div>
+          <div class="backfill-symbol-panel">
+            <div class="backfill-symbol-heading">
+              <label for="backfill-symbols">Tickers</label>
+              <span id="backfill-symbol-summary" class="status-pill muted">Scope: all/global</span>
+            </div>
+            <select id="backfill-symbols" multiple size="8"></select>
+            <div class="button-row">
+              <button id="backfill-select-all" class="btn" type="button">Select All</button>
+              <button id="backfill-clear-symbols" class="btn" type="button">Clear</button>
+            </div>
           </div>
           <div id="historical-progress" class="run-progress"></div>
           <div class="metric-grid">

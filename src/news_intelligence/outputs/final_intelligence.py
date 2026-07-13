@@ -30,7 +30,9 @@ class FinalIntelligenceOutputService:
         limit: int = 500,
         start: date | None = None,
         end: date | None = None,
+        symbols: list[str] | None = None,
     ) -> list[dict[str, Any]]:
+        symbol_filter = self._symbol_filter(symbols)
         outcomes = JoinedOutcomeAnalysisService(
             self._repositories,
             FavouritesUniverseService(self._config),
@@ -60,6 +62,7 @@ class FinalIntelligenceOutputService:
             record
             for record in records
             if self._record_in_date_range(record, start=start, end=end)
+            and self._record_matches_symbols(record, symbol_filter=symbol_filter)
         ]
         records.sort(key=lambda record: str(record.get("event_time", "")), reverse=True)
         return records
@@ -70,8 +73,9 @@ class FinalIntelligenceOutputService:
         limit: int = 500,
         start: date | None = None,
         end: date | None = None,
+        symbols: list[str] | None = None,
     ) -> dict[str, Any]:
-        records = self.records(limit=limit, start=start, end=end)
+        records = self.records(limit=limit, start=start, end=end, symbols=symbols)
         stored = {
             str(payload.get("record_id")): payload
             for payload in self._repositories.final_outputs.list_recent(limit)
@@ -93,6 +97,7 @@ class FinalIntelligenceOutputService:
         return {
             "schema_version": "1.0.0",
             "generated_at": now_utc().isoformat(),
+            "symbols": self._symbol_filter(symbols),
             "record_count": len(decorated),
             "records": decorated,
         }
@@ -104,11 +109,12 @@ class FinalIntelligenceOutputService:
         run_id: str | None = None,
         start: date | None = None,
         end: date | None = None,
+        symbols: list[str] | None = None,
     ) -> dict[str, Any]:
         output_dir = self._output_dir()
         output_dir.mkdir(parents=True, exist_ok=True)
         started_at = now_utc()
-        records = self.records(limit=limit, start=start, end=end)
+        records = self.records(limit=limit, start=start, end=end, symbols=symbols)
         exported: list[dict[str, Any]] = []
         skipped: list[dict[str, Any]] = []
         run_identifier = run_id or stable_hash(started_at.isoformat(), prefix="run_", length=12)
@@ -143,6 +149,7 @@ class FinalIntelligenceOutputService:
                 "from": start.isoformat() if start else None,
                 "to": end.isoformat() if end else None,
             },
+            "symbols": self._symbol_filter(symbols),
             "started_at": started_at.isoformat(),
             "completed_at": now_utc().isoformat(),
             "records_considered": len(records),
@@ -185,6 +192,7 @@ class FinalIntelligenceOutputService:
             "event_type": outcome.get("event_type"),
             "event_subtype": outcome.get("event_subtype"),
             "event_status": outcome.get("event_status"),
+            "event_symbols": self._event_symbols(event, outcome),
             "scope": event.get("event_scope"),
             "instrument": {
                 "symbol": outcome.get("symbol"),
@@ -251,6 +259,51 @@ class FinalIntelligenceOutputService:
         if start is not None and event_date < start:
             return False
         return not (end is not None and event_date > end)
+
+    def _symbol_filter(self, symbols: list[str] | None) -> list[str]:
+        seen: set[str] = set()
+        filtered: list[str] = []
+        for symbol in symbols or []:
+            clean = str(symbol).strip().upper()
+            if clean and clean not in seen:
+                seen.add(clean)
+                filtered.append(clean)
+        return filtered
+
+    def _record_matches_symbols(
+        self,
+        record: dict[str, Any],
+        *,
+        symbol_filter: list[str],
+    ) -> bool:
+        if not symbol_filter:
+            return True
+        wanted = set(symbol_filter)
+        candidates: set[str] = set()
+        instrument = record.get("instrument")
+        if isinstance(instrument, dict):
+            self._add_symbol_candidate(candidates, instrument.get("symbol"))
+        for value in record.get("event_symbols", []):
+            self._add_symbol_candidate(candidates, value)
+        return bool(candidates.intersection(wanted))
+
+    def _event_symbols(self, event: dict[str, Any], outcome: dict[str, Any]) -> list[str]:
+        symbols: set[str] = set()
+        self._add_symbol_candidate(symbols, event.get("primary_symbol"))
+        self._add_symbol_candidate(symbols, outcome.get("symbol"))
+        entities = event.get("entities")
+        if isinstance(entities, list):
+            for entity in entities:
+                if isinstance(entity, dict):
+                    self._add_symbol_candidate(symbols, entity.get("symbol"))
+        return sorted(symbols)
+
+    def _add_symbol_candidate(self, symbols: set[str], value: Any) -> None:
+        if value is None:
+            return
+        symbol = str(value).strip().upper()
+        if symbol:
+            symbols.add(symbol)
 
     def _parse_datetime(self, value: Any) -> datetime | None:
         if not isinstance(value, str):

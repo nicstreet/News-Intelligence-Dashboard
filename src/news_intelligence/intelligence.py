@@ -120,17 +120,20 @@ class IntelligenceRefreshService:
         limit: int = 5_000,
         page_limit: int | None = None,
         max_pages: int | None = None,
+        symbols: list[str] | None = None,
     ) -> dict[str, Any]:
         if end < start:
             raise ValueError("Backfill end date must be on or after the start date.")
         if source != "eodhd_news":
             raise ValueError("Only eodhd_news historical backfill is currently supported.")
+        requested_symbols = self._normalise_symbols(symbols)
 
         started_at = self._pipeline.clock()
         run_id = stable_hash(
             "historical_backfill",
             start.isoformat(),
             end.isoformat(),
+            ",".join(requested_symbols),
             started_at.isoformat(),
             prefix="backfill_",
             length=12,
@@ -149,11 +152,15 @@ class IntelligenceRefreshService:
             progress(
                 {
                     "phase": "fetching_source",
-                    "message": f"Fetching {connector.source_name} from {start} to {end}",
+                    "message": (
+                        f"Fetching {connector.source_name} from {start} to {end}"
+                        f"{self._symbol_scope_message(requested_symbols)}"
+                    ),
                     "connector_name": connector.source_name,
                     "connector_type": connector.connector_type,
                     "connector_index": 1,
                     "connector_total": 1,
+                    "symbols": requested_symbols,
                 }
             )
             records = connector.fetch_range(
@@ -164,6 +171,7 @@ class IntelligenceRefreshService:
                 ),
                 limit=page_limit,
                 max_pages=max_pages,
+                symbols=requested_symbols or None,
             )
             source_run = ingestion.ingest_fetched(
                 connector,
@@ -181,6 +189,7 @@ class IntelligenceRefreshService:
                 limit=limit,
                 start=start,
                 end=end,
+                symbols=requested_symbols or None,
                 progress=progress,
             )
         except Exception as exc:
@@ -202,11 +211,17 @@ class IntelligenceRefreshService:
                 run_id=run_id,
                 start=start,
                 end=end,
+                symbols=requested_symbols or None,
             )
             if export_delta
             else None
         )
-        output = output_service.list_output(limit=limit, start=start, end=end)
+        output = output_service.list_output(
+            limit=limit,
+            start=start,
+            end=end,
+            symbols=requested_symbols or None,
+        )
         completed_at = self._pipeline.clock()
         payload = {
             "automation_run_id": run_id,
@@ -214,6 +229,7 @@ class IntelligenceRefreshService:
             "record_environment": self._pipeline.config.environment,
             "date_range": {"from": start.isoformat(), "to": end.isoformat()},
             "source": source,
+            "symbols": requested_symbols,
             "started_at": started_at.isoformat(),
             "completed_at": completed_at.isoformat(),
             "source_run_count": len(source_run_payloads),
@@ -264,6 +280,7 @@ class IntelligenceRefreshService:
         limit: int,
         start: date | None = None,
         end: date | None = None,
+        symbols: list[str] | None = None,
         progress: Any | None = None,
     ) -> list[dict[str, Any]]:
         settings = self._market_data_settings()
@@ -289,6 +306,7 @@ class IntelligenceRefreshService:
                 start=start,
                 end=end,
                 limit=limit,
+                symbols=symbols,
             )[:max_symbols]
             for index, candidate in enumerate(candidates, start=1):
                 self._progress(
@@ -316,8 +334,8 @@ class IntelligenceRefreshService:
                 )
             return results
 
-        symbols = self._symbols_requiring_market_data(limit=limit)
-        candidates = symbols[:max_symbols]
+        required_symbols = self._symbols_requiring_market_data(limit=limit)
+        candidates = required_symbols[:max_symbols]
         for index, candidate in enumerate(candidates, start=1):
             self._progress(
                 progress,
@@ -361,9 +379,11 @@ class IntelligenceRefreshService:
         start: date,
         end: date,
         limit: int,
+        symbols: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         universe = FavouritesUniverseService(self._pipeline.config).universe()
         instruments = {instrument.symbol.upper(): instrument for instrument in universe.instruments}
+        symbol_filter = set(self._normalise_symbols(symbols))
         events = {
             str(event.get("event_id", "")): event
             for event in self._pipeline.repositories.events.list_recent(limit)
@@ -378,6 +398,10 @@ class IntelligenceRefreshService:
             event_at = self._event_time(event, signal)
             if not symbol or event_at is None:
                 continue
+            if symbol_filter and symbol not in symbol_filter:
+                event_symbols = self._event_symbols(event)
+                if not event_symbols.intersection(symbol_filter):
+                    continue
             event_date = to_utc(event_at).date()
             if event_date < start or event_date > end:
                 continue
@@ -400,6 +424,40 @@ class IntelligenceRefreshService:
                     event_at=event_at,
                 )
         return sorted(candidates.values(), key=lambda candidate: candidate["symbol"])
+
+    def _normalise_symbols(self, symbols: list[str] | None) -> list[str]:
+        seen: set[str] = set()
+        normalised: list[str] = []
+        for symbol in symbols or []:
+            clean = str(symbol).strip().upper()
+            if clean and clean not in seen:
+                seen.add(clean)
+                normalised.append(clean)
+        return normalised
+
+    def _symbol_scope_message(self, symbols: list[str]) -> str:
+        if not symbols:
+            return ""
+        sample = ", ".join(symbols[:5])
+        suffix = "" if len(symbols) <= 5 else f" +{len(symbols) - 5}"
+        return f" for {len(symbols)} symbol(s): {sample}{suffix}"
+
+    def _event_symbols(self, event: dict[str, Any] | None) -> set[str]:
+        if not isinstance(event, dict):
+            return set()
+        symbols: set[str] = set()
+        primary = str(event.get("primary_symbol", "")).strip().upper()
+        if primary:
+            symbols.add(primary)
+        entities = event.get("entities")
+        if isinstance(entities, list):
+            for entity in entities:
+                if not isinstance(entity, dict):
+                    continue
+                symbol = str(entity.get("symbol", "")).strip().upper()
+                if symbol:
+                    symbols.add(symbol)
+        return symbols
 
     def _symbols_requiring_market_data(self, *, limit: int) -> list[dict[str, Any]]:
         universe = FavouritesUniverseService(self._pipeline.config).universe()

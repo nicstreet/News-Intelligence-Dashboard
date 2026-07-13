@@ -214,7 +214,7 @@ Implemented endpoints:
 | `POST` | `/automation/run-now` | Run due-source polling and configured retention housekeeping immediately |
 | `GET` | `/intelligence/output` | List clean user-facing intelligence output records |
 | `POST` | `/intelligence/refresh` | Run source deltas, market-data joins, final output build and delta JSON export |
-| `POST` | `/intelligence/backfill` | Fetch EODHD news for a date range, run the normal intelligence cycle and export date-scoped JSON deltas |
+| `POST` | `/intelligence/backfill` | Fetch EODHD news for a date range and optional symbol list, run the normal intelligence cycle and export scoped JSON deltas |
 | `GET` | `/intelligence/progress` | Show active/latest intelligence run progress for dashboard polling |
 | `GET` | `/calibration/report` | Build the current calibration profile report |
 | `GET` | `/calibration/outcomes` | Join persisted news signals to cached market data and calculate forward returns |

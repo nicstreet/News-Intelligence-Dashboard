@@ -252,6 +252,7 @@ def test_dashboard_exposes_update_counts_and_versions() -> None:
     root = Path(__file__).resolve().parents[2]
     renderers = (root / "frontend" / "js" / "renderers.js").read_text(encoding="utf-8")
     app = (root / "frontend" / "js" / "app.js").read_text(encoding="utf-8")
+    index = (root / "frontend" / "index.html").read_text(encoding="utf-8")
 
     assert "Update count" in renderers
     assert "Classification" in renderers
@@ -281,6 +282,9 @@ def test_dashboard_exposes_update_counts_and_versions() -> None:
     assert "automationRunNow" in app
     assert "renderAutomationRuns" in renderers
     assert "recent_runs" in renderers
+    assert "backfill-symbols" in index
+    assert "selectedBackfillSymbols" in app
+    assert "renderBackfillSymbols" in app
 
 
 def test_takeover_fixture_isolated_across_test_runs(isolated_database: Path) -> None:

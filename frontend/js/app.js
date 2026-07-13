@@ -65,7 +65,8 @@
       "options-developer", "options-refresh-dashboard", "fixture-selector", "load-fixture", "news-form",
       "refresh-intelligence", "intelligence-run-status", "intelligence-toggle-table",
       "intelligence-toggle-json", "intelligence-output-table", "intelligence-output-json",
-      "backfill-from", "backfill-to", "run-intelligence-backfill", "intelligence-backfill-status",
+      "backfill-from", "backfill-to", "backfill-symbols", "backfill-symbol-summary",
+      "backfill-select-all", "backfill-clear-symbols", "run-intelligence-backfill", "intelligence-backfill-status",
       "intelligence-progress", "historical-progress", "historical-result-json",
       "market-data-from", "market-data-to", "market-data-include-benchmarks",
       "run-market-data-backfill", "market-data-backfill-status", "market-data-progress",
@@ -107,6 +108,20 @@
     elements["load-fixture"].addEventListener("click", () => loadFixture(elements["fixture-selector"].value));
     elements["refresh-intelligence"].addEventListener("click", () => refreshIntelligence(true));
     elements["run-intelligence-backfill"].addEventListener("click", runIntelligenceBackfill);
+    elements["backfill-symbols"].addEventListener("change", () => {
+      persistBackfillSymbols();
+      renderBackfillSymbolSummary();
+    });
+    elements["backfill-select-all"].addEventListener("click", () => {
+      setBackfillSymbolsSelected(true);
+      persistBackfillSymbols();
+      renderBackfillSymbolSummary();
+    });
+    elements["backfill-clear-symbols"].addEventListener("click", () => {
+      setBackfillSymbolsSelected(false);
+      persistBackfillSymbols();
+      renderBackfillSymbolSummary();
+    });
     elements["intelligence-toggle-table"].addEventListener("click", () => setIntelligenceMode("table"));
     elements["intelligence-toggle-json"].addEventListener("click", () => setIntelligenceMode("json"));
     elements["fixture-selector"].addEventListener("change", () => {
@@ -425,6 +440,7 @@
   function renderUniverse() {
     elements["universe-summary"].innerHTML = window.NewsRenderers.renderUniverseSummary(state.universe);
     elements["universe-table"].innerHTML = window.NewsRenderers.renderUniverseTable(state.universe);
+    renderBackfillSymbols();
   }
 
   function renderCalibration() {
@@ -635,6 +651,7 @@
     hideError();
     const from = elements["backfill-from"].value;
     const to = elements["backfill-to"].value;
+    const symbols = selectedBackfillSymbols();
     if (!from || !to) {
       showError({stage: "Backfill", message: "Enter both from and to dates.", requestId: "not submitted"});
       return;
@@ -643,7 +660,8 @@
       showError({stage: "Backfill", message: "The to date must be on or after the from date.", requestId: "not submitted"});
       return;
     }
-    setBackfillStatus("Backfill: running...", "processing");
+    const scope = symbols.length ? `${symbols.length} ticker${symbols.length === 1 ? "" : "s"}` : "all/global";
+    setBackfillStatus(`Backfill: running ${scope}...`, "processing");
     elements["run-intelligence-backfill"].disabled = true;
     const stopProgress = startProgressPolling("historical");
     try {
@@ -651,6 +669,7 @@
         from,
         to,
         source: "eodhd_news",
+        symbols,
         export_delta: true,
         limit: 5000
       });
@@ -669,7 +688,7 @@
       await refreshStorage();
       renderDeveloper();
       setBackfillStatus(
-        `Backfill: ${result.ingested_count || 0} ingested, ${result.exported_count || 0} exported`,
+        `Backfill: ${result.ingested_count || 0} ingested, ${result.exported_count || 0} exported (${scope})`,
         ""
       );
     } catch (error) {
@@ -1258,6 +1277,80 @@
 
   function setText(id, value) {
     if (elements[id]) elements[id].textContent = value;
+  }
+
+  function renderBackfillSymbols() {
+    const select = elements["backfill-symbols"];
+    if (!select) return;
+    const previous = new Set(selectedBackfillSymbols());
+    const saved = new Set(savedBackfillSymbols());
+    const selected = previous.size ? previous : saved;
+    const instruments = state.universe && Array.isArray(state.universe.instruments)
+      ? [...state.universe.instruments]
+      : [];
+    instruments.sort((left, right) => String(left.symbol || "").localeCompare(String(right.symbol || "")));
+    select.innerHTML = instruments.map((instrument) => {
+      const symbol = String(instrument.symbol || "").toUpperCase();
+      const name = instrument.name ? ` - ${instrument.name}` : "";
+      const selectedAttr = selected.has(symbol) ? " selected" : "";
+      return `<option value="${escapeAttr(symbol)}"${selectedAttr}>${escapeHtml(`${symbol}${name}`)}</option>`;
+    }).join("");
+    renderBackfillSymbolSummary();
+  }
+
+  function selectedBackfillSymbols() {
+    const select = elements["backfill-symbols"];
+    if (!select) return [];
+    return Array.from(select.selectedOptions || [])
+      .map((option) => String(option.value || "").trim().toUpperCase())
+      .filter(Boolean);
+  }
+
+  function savedBackfillSymbols() {
+    try {
+      const saved = JSON.parse(localStorage.getItem("newsIntelligenceBackfillSymbols") || "[]");
+      return Array.isArray(saved)
+        ? saved.map((symbol) => String(symbol).trim().toUpperCase()).filter(Boolean)
+        : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function persistBackfillSymbols() {
+    localStorage.setItem(
+      "newsIntelligenceBackfillSymbols",
+      JSON.stringify(selectedBackfillSymbols())
+    );
+  }
+
+  function setBackfillSymbolsSelected(selected) {
+    const select = elements["backfill-symbols"];
+    if (!select) return;
+    Array.from(select.options || []).forEach((option) => {
+      option.selected = selected;
+    });
+  }
+
+  function renderBackfillSymbolSummary() {
+    const target = elements["backfill-symbol-summary"];
+    if (!target) return;
+    const symbols = selectedBackfillSymbols();
+    if (!symbols.length) {
+      target.textContent = "Scope: all/global";
+      return;
+    }
+    const sample = symbols.slice(0, 4).join(", ");
+    const suffix = symbols.length > 4 ? ` +${symbols.length - 4}` : "";
+    target.textContent = `Scope: ${sample}${suffix}`;
+  }
+
+  function escapeHtml(value) {
+    return window.NewsRenderers.escapeHtml(value);
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/"/g, "&quot;");
   }
 
   function setIntelligenceMode(mode) {
