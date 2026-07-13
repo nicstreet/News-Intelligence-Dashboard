@@ -759,6 +759,7 @@
     const unresolved = failures.filter(
       (item) => item.mapping_status === "default_us_suffix"
         && item.failure_kind === "provider_not_found"
+        && item.configured_symbol
     );
     return [
       metric("Mapping file", mappings.mapping_file || "n/a"),
@@ -785,11 +786,12 @@
   function renderMarketMappingFailures(mappings) {
     const rows = mappings && mappings.recent_failures ? mappings.recent_failures : [];
     if (rows.length === 0) {
-      return `<tr><td colspan="5">No recent market-data mapping failures.</td></tr>`;
+      return `<tr><td colspan="6">No recent market-data mapping failures.</td></tr>`;
     }
     return rows.map((row) => `<tr>
       <td>${escapeHtml(dateOnly(row.requested_at))}</td>
       <td>${escapeHtml(row.symbol || "n/a")}</td>
+      <td>${String(Boolean(row.configured_symbol)).toUpperCase()}</td>
       <td>${escapeHtml(row.exchange || "n/a")}</td>
       <td>${escapeHtml(row.current_provider_symbol || "n/a")}</td>
       <td>${escapeHtml(upper(row.mapping_status || row.failure_kind || "n/a"))}</td>

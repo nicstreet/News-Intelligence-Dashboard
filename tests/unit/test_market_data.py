@@ -132,6 +132,7 @@ def test_market_data_mapping_summary_exposes_overrides_and_failures(
 
     assert overrides["005490"] == "005490.KO"
     assert failure["symbol"] == "005490"
+    assert failure["configured_symbol"] is False
     assert failure["current_provider_symbol"] == "005490.KO"
     assert failure["failure_kind"] == "provider_not_found"
     assert failure["mapping_status"] == "provider_override"

@@ -213,10 +213,12 @@ class MarketDataService:
     def mapping_summary(self, recent_limit: int = 200) -> dict[str, Any]:
         exchange_suffixes = self._string_mapping("exchange_suffixes")
         symbol_overrides = self._string_mapping("symbol_overrides")
+        configured_symbols = self._configured_symbols()
         return {
             "schema_version": "1.0.0",
             "provider": "EODHD",
             "mapping_file": "config/eodhd.yaml",
+            "configured_symbol_count": len(configured_symbols),
             "exchange_suffixes": [
                 {"exchange": exchange, "provider_suffix": suffix}
                 for exchange, suffix in sorted(exchange_suffixes.items())
@@ -233,6 +235,7 @@ class MarketDataService:
                 recent_limit=recent_limit,
                 symbol_overrides=symbol_overrides,
                 exchange_suffixes=exchange_suffixes,
+                configured_symbols=configured_symbols,
             ),
         }
 
@@ -296,6 +299,7 @@ class MarketDataService:
         recent_limit: int,
         symbol_overrides: dict[str, str],
         exchange_suffixes: dict[str, str],
+        configured_symbols: set[str],
     ) -> list[dict[str, Any]]:
         failures: list[dict[str, Any]] = []
         seen: set[tuple[str, str, str]] = set()
@@ -317,6 +321,7 @@ class MarketDataService:
                 {
                     "symbol": symbol,
                     "exchange": exchange or None,
+                    "configured_symbol": symbol in configured_symbols,
                     "interval": interval,
                     "requested_at": request.get("requested_at"),
                     "current_provider_symbol": provider_symbol,
