@@ -27,7 +27,9 @@ exchange_suffixes:
   LSE: LSE
 symbol_overrides:
   "000660": 000660.KO
+  "002594": 002594.SHE
   "005490": 005490.KO
+  "005935": 005935.KO
   SANN: SANN.SW
   VIX: VIX.INDX
 news:

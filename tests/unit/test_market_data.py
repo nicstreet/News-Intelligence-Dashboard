@@ -42,7 +42,9 @@ def test_eodhd_client_converts_daily_bars_and_symbols() -> None:
     assert client.eodhd_symbol("AAPL", "NASDAQ") == "AAPL.US"
     assert client.eodhd_symbol("SEMG.L", "LSE") == "SEMG.LSE"
     assert client.eodhd_symbol("000660") == "000660.KO"
+    assert client.eodhd_symbol("002594") == "002594.SHE"
     assert client.eodhd_symbol("005490") == "005490.KO"
+    assert client.eodhd_symbol("005935") == "005935.KO"
     assert client.eodhd_symbol("SANN") == "SANN.SW"
     assert client.eodhd_symbol("VIX", "CBOE") == "VIX.INDX"
     assert len(bars) == 2
@@ -131,6 +133,8 @@ def test_market_data_mapping_summary_exposes_overrides_and_failures(
     failure = summary["recent_failures"][0]
 
     assert overrides["005490"] == "005490.KO"
+    assert overrides["002594"] == "002594.SHE"
+    assert overrides["005935"] == "005935.KO"
     assert failure["symbol"] == "005490"
     assert failure["configured_symbol"] is False
     assert failure["current_provider_symbol"] == "005490.KO"
